@@ -1,0 +1,297 @@
+use crate::gba_file::GBAHeader;
+
+#[derive(Debug)]
+enum Condition {
+    Eq,
+    Ne,
+    Cs,
+    Cc,
+    Mi,
+    Pl,
+    Vs,
+    Vc,
+    Hi,
+    Ls,
+    Ge,
+    Lt,
+    Gt,
+    Le,
+    Al,
+    Nv,
+}
+
+impl From<u32> for Condition {
+    fn from(value: u32) -> Self {
+        match value {
+            0 => Self::Eq,
+            1 => Self::Ne,
+            2 => Self::Cs,
+            3 => Self::Cc,
+            4 => Self::Mi,
+            5 => Self::Pl,
+            6 => Self::Vs,
+            7 => Self::Vc,
+            8 => Self::Hi,
+            9 => Self::Ls,
+            10 => Self::Ge,
+            11 => Self::Lt,
+            12 => Self::Gt,
+            13 => Self::Le,
+            14 => Self::Al,
+            15 => Self::Nv,
+            _ => unreachable!("Unkown condition {value:x}"),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Branch {
+    condition: Condition,
+    /// is B or BL, true for Bl
+    is_link: bool,
+    nn: u32,
+}
+
+impl From<u32> for Branch {
+    fn from(value: u32) -> Self {
+        let condition = Condition::from((value >> 28) & 0b1111);
+        let opcode = (value >> 24) & 0b1;
+        let nn = (value) & 0xffffff;
+        Self {
+            condition,
+            is_link: opcode == 1,
+            nn,
+        }
+    }
+}
+
+#[derive(Debug)]
+enum AluOp {
+    And,
+    Eor,
+    Sub,
+    Rsb,
+    Add,
+    Adc,
+    Sbc,
+    Rsc,
+    Tst,
+    Teq,
+    Cmp,
+    Cmn,
+    Orr,
+    Mov,
+    Bic,
+    Mvn,
+}
+
+impl From<u32> for AluOp {
+    fn from(value: u32) -> Self {
+        match value {
+            0 => Self::And,
+            1 => Self::Eor,
+            2 => Self::Sub,
+            3 => Self::Rsb,
+            4 => Self::Add,
+            5 => Self::Adc,
+            6 => Self::Sbc,
+            7 => Self::Rsc,
+            8 => Self::Tst,
+            9 => Self::Teq,
+            10 => Self::Cmp,
+            11 => Self::Cmn,
+            12 => Self::Orr,
+            13 => Self::Mov,
+            14 => Self::Bic,
+            15 => Self::Mvn,
+            _ => unreachable!("Unknown AluOp {value:x}"),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Alu {
+    condition: Condition,
+    immediate: bool,
+    op: AluOp,
+    /// Data that's executed based in immediate mode
+    operand: u32,
+    s: bool,
+    rn: Register,
+    rd: Register,
+}
+
+impl From<u32> for Alu {
+    fn from(value: u32) -> Self {
+        let condition = Condition::from((value >> 28) & 0b1111);
+        let immediate = (value >> 25) & 0b1 == 1;
+        let op = AluOp::from((value >> 21) & 0b1111);
+        let s = (value >> 20) & 0b1 == 1;
+        let rn = Register::from((value >> 16) & 0b1111);
+        let rd = Register::from((value >> 12) & 0b1111);
+        let operand = value & 0xffffff;
+
+        Self {
+            condition,
+            immediate,
+            op,
+            s,
+            rn,
+            rd,
+            operand,
+        }
+    }
+}
+
+#[derive(Debug)]
+enum Instruction {
+    Branch(Branch),
+    Alu(Alu),
+    /// Single Data Tranfer, LDR, STR, PLD
+    Sdt,
+}
+
+// TODO: TryFrom
+impl From<u32> for Instruction {
+    fn from(value: u32) -> Self {
+        if (value >> 25) & 0b111 == 0b101 {
+            Self::Branch(Branch::from(value))
+        } else if (value >> 26) & 0b11 == 0b00 {
+            Self::Alu(Alu::from(value))
+        } else {
+            unimplemented!("Unknown instuction {value:08X}")
+        }
+    }
+}
+
+#[derive(Debug)]
+enum Register {
+    R0,
+    R1,
+    R2,
+    R3,
+    R4,
+    R5,
+    R6,
+    R7,
+    R8,
+    R9,
+    R10,
+    R11,
+    R12,
+    /// (SP)
+    R13,
+    /// (LR)
+    R14,
+    /// (PC)
+    R15,
+}
+
+impl From<u32> for Register {
+    fn from(value: u32) -> Self {
+        match value {
+            0 => Self::R0,
+            1 => Self::R1,
+            2 => Self::R2,
+            3 => Self::R3,
+            4 => Self::R4,
+            5 => Self::R5,
+            6 => Self::R6,
+            7 => Self::R7,
+            8 => Self::R8,
+            9 => Self::R9,
+            10 => Self::R10,
+            11 => Self::R11,
+            12 => Self::R12,
+            13 => Self::R13,
+            14 => Self::R14,
+            15 => Self::R15,
+            _ => unreachable!("Unknown register {value:x}"),
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct Cpu {
+    pub r0: u32,
+    pub pc: u32,
+}
+
+impl Cpu {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    fn set_register(&mut self, reg: Register, value: u32) {
+        match reg {
+            Register::R0 => self.r0 = value,
+            _ => todo!(),
+        }
+    }
+
+    fn run_branch(&mut self, branch: Branch) {
+        // TODO: properly handle nn being signed
+        // TODO: handle BL
+        if branch.is_link {
+            unimplemented!("Runnin BL is not implemented");
+        }
+
+        self.pc = self.pc + 8 + branch.nn * 4;
+    }
+
+    fn run_alu(&mut self, alu: Alu) {
+        // TODO: condition codes
+        match alu.op {
+            AluOp::And => todo!(),
+            AluOp::Eor => todo!(),
+            AluOp::Sub => todo!(),
+            AluOp::Rsb => todo!(),
+            AluOp::Add => todo!(),
+            AluOp::Adc => todo!(),
+            AluOp::Sbc => todo!(),
+            AluOp::Rsc => todo!(),
+            AluOp::Tst => todo!(),
+            AluOp::Teq => todo!(),
+            AluOp::Cmp => todo!(),
+            AluOp::Cmn => todo!(),
+            AluOp::Orr => todo!(),
+            AluOp::Mov => {
+                // TODO: move register
+                if !alu.immediate {
+                    unimplemented!("AluOp::Mov register value not supported");
+                }
+
+                let rors = (alu.operand >> 8) & 0b1111;
+                let nn = alu.operand & 0b11111111;
+                self.set_register(alu.rd, nn.rotate_right(rors * 2));
+                self.pc += 4;
+            }
+            AluOp::Bic => todo!(),
+            AluOp::Mvn => todo!(),
+        }
+    }
+
+    fn run_next_instruction(&mut self, bytes: &[u8]) {
+        let instr: Instruction = u32::from_le_bytes(
+            bytes[self.pc as usize..self.pc as usize + 4]
+                .try_into()
+                .unwrap(),
+        )
+        .into();
+
+        match instr {
+            Instruction::Branch(b) => self.run_branch(b),
+            Instruction::Alu(a) => self.run_alu(a),
+            Instruction::Sdt => todo!(),
+        }
+    }
+
+    pub fn run_rom(&mut self, bytes: &[u8]) {
+        let rom = GBAHeader::from_file(bytes);
+        // self.pc = rom.rom_entry_point;
+
+        loop {
+            self.run_next_instruction(bytes)
+        }
+    }
+}

@@ -1,5 +1,3 @@
-use std::fs;
-
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct GBAHeader {
@@ -182,24 +180,23 @@ impl GBAHeader {
         self.joy_entry_point = u32::from_le_bytes(data[0xE0..0xE0 + 4].try_into().unwrap());
     }
 
-    pub fn from_file(path: &str) -> Self {
-        let bytes = fs::read(path).unwrap();
-
+    pub fn from_file(bytes: &[u8]) -> Self {
         let mut header: Self = Default::default();
-        header.add_rom_entry_point(&bytes);
-        header.add_logo(&bytes);
-        header.add_game_title(&bytes);
-        header.add_game_code(&bytes);
-        header.add_maker_code(&bytes);
-        header.add_fixed_value(&bytes);
-        header.add_main_unit_code(&bytes);
-        header.add_device_type(&bytes);
-        header.add_software_version(&bytes);
-        header.add_complement_check(&bytes);
-        header.add_ram_entry_point(&bytes);
-        header.add_boot_mode(&bytes);
-        header.add_slave_id(&bytes);
-        header.add_joy_entry_point(&bytes);
+
+        header.add_rom_entry_point(bytes);
+        header.add_logo(bytes);
+        header.add_game_title(bytes);
+        header.add_game_code(bytes);
+        header.add_maker_code(bytes);
+        header.add_fixed_value(bytes);
+        header.add_main_unit_code(bytes);
+        header.add_device_type(bytes);
+        header.add_software_version(bytes);
+        header.add_complement_check(bytes);
+        header.add_ram_entry_point(bytes);
+        header.add_boot_mode(bytes);
+        header.add_slave_id(bytes);
+        header.add_joy_entry_point(bytes);
 
         header
     }
