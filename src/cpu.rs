@@ -225,7 +225,7 @@ impl TryFrom<u32> for Instruction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Register {
     R0,
     R1,
@@ -275,6 +275,9 @@ impl From<u32> for Register {
 #[derive(Debug, Default)]
 pub struct Cpu {
     pub r0: u32,
+    /// R13
+    pub sp: u32,
+    /// R15
     pub pc: u32,
     memory: Vec<u8>,
 }
@@ -291,6 +294,8 @@ impl Cpu {
     fn get_register(&self, reg: Register) -> EResult<u32> {
         match reg {
             Register::R0 => Ok(self.r0),
+            Register::R13 => Ok(self.sp),
+            Register::R15 => Ok(self.pc),
             _ => Err(ExecErr::UnimplementedInstr(format!(
                 "Register {reg:?} not implmented"
             ))),
@@ -300,6 +305,8 @@ impl Cpu {
     fn set_register(&mut self, reg: Register, value: u32) -> EResult<()> {
         match reg {
             Register::R0 => self.r0 = value,
+            Register::R13 => self.sp = value,
+            Register::R15 => self.pc = value,
             _ => {
                 return Err(ExecErr::UnimplementedInstr(format!(
                     "Register {reg:?} not implmented"
@@ -310,7 +317,7 @@ impl Cpu {
         Ok(())
     }
 
-    fn get_memory(&mut self, offset: u32) -> u32 {
+    fn get_memory(&self, offset: u32) -> u32 {
         u32::from_le_bytes(
             self.memory[offset as usize..offset as usize + 4]
                 .try_into()
@@ -354,9 +361,27 @@ impl Cpu {
             AluOp::Rsb => Err(ExecErr::UnimplementedInstr(
                 "AluOp::Rsb not implemented".into(),
             )),
-            AluOp::Add => Err(ExecErr::UnimplementedInstr(
-                "AluOp::Add not implemented".into(),
-            )),
+            AluOp::Add => {
+                // TODO: move register
+                if !alu.immediate {
+                    return Err(ExecErr::UnimplementedInstr(
+                        "AluOp::Add register value not supported".into(),
+                    ));
+                }
+
+                let rors = (alu.operand >> 8) & 0b1111;
+                let nn = alu.operand & 0b11111111;
+                let op2 = nn.rotate_right(rors * 2);
+                // When using R15 as operand (Rm or Rn), the returned value depends
+                // on the instruction: PC+12 if I=0,R=1 (shift by register),
+                // otherwise PC+8 (shift by immediate).
+                let mut reg = if alu.rn == Register::R15 { 8 } else { 0 };
+
+                reg += self.get_register(alu.rn)?;
+                self.set_register(alu.rd, reg + op2)?;
+                self.pc += 4;
+                Ok(())
+            }
             AluOp::Adc => Err(ExecErr::UnimplementedInstr(
                 "AluOp::Adc not implemented".into(),
             )),
@@ -407,13 +432,6 @@ impl Cpu {
     fn run_sdt(&mut self, sdt: Sdt) -> EResult<()> {
         // TODO: properly handle condition
         // TODO: properly handle tw (bit 21)
-        // TODO: LDR
-
-        if sdt.load_memory {
-            return Err(ExecErr::UnimplementedInstr(
-                "Runnin LDR is not implemented".into(),
-            ));
-        }
 
         if !sdt.immediate {
             return Err(ExecErr::UnimplementedInstr(
@@ -421,20 +439,28 @@ impl Cpu {
             ));
         }
 
-        self.set_memory(self.get_register(sdt.rn)? + sdt.operand, self.r0);
+        if sdt.load_memory {
+            let base_addr = self.get_register(sdt.rn)?;
+            // TODO: proper unsigned addition
+            let addr = base_addr + sdt.operand;
+            self.set_register(sdt.rd, self.get_memory(addr))?;
+        } else {
+            self.set_memory(self.get_register(sdt.rn)? + sdt.operand, self.r0);
+        }
+
         self.pc += 4;
 
         Ok(())
     }
 
-    fn run_next_instruction(&mut self, bytes: &[u8]) -> EResult<()> {
+    fn run_next_instruction(&mut self) -> EResult<()> {
         let word = u32::from_le_bytes(
-            bytes[self.pc as usize..self.pc as usize + 4]
+            self.memory[self.pc as usize..self.pc as usize + 4]
                 .try_into()
                 .unwrap(),
         );
 
-        let fmt = format!("Trying from word: {word:08X}");
+        let fmt = format!("Trying from word: {word:08X} addr: {:08X}", self.pc);
         dbg!(fmt);
 
         let instr: Instruction = word.try_into()?;
@@ -449,7 +475,6 @@ impl Cpu {
             Instruction::Psr => {
                 dbg!("Ignoring Psr instructions");
                 self.pc += 4;
-                ()
             }
         }
 
@@ -458,10 +483,14 @@ impl Cpu {
 
     pub fn run_rom(&mut self, bytes: &[u8]) -> EResult<()> {
         let rom = GBAHeader::from_file(bytes);
-        // self.pc = rom.rom_entry_point;
+        self.pc = 0x8000000;
+
+        for (idx, b) in bytes.iter().enumerate() {
+            self.memory[self.pc as usize + idx] = *b;
+        }
 
         loop {
-            self.run_next_instruction(bytes)?
+            self.run_next_instruction()?
         }
     }
 }
