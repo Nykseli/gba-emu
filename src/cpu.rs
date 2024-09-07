@@ -199,6 +199,8 @@ enum Instruction {
     Alu(Alu),
     /// Single Data Tranfer, LDR, STR, PLD
     Sdt(Sdt),
+    /// PSR Transfer (MRS, MSR)
+    Psr,
 }
 
 impl TryFrom<u32> for Instruction {
@@ -208,6 +210,12 @@ impl TryFrom<u32> for Instruction {
         if (value >> 25) & 0b111 == 0b101 {
             Ok(Self::Branch(Branch::from(value)))
         } else if (value >> 26) & 0b11 == 0b00 {
+            let op = AluOp::from((value >> 21) & 0b1111);
+            let s = (value >> 20) & 0b1;
+            if s == 0 && matches!(op, AluOp::Tst | AluOp::Teq | AluOp::Cmp | AluOp::Cmn) {
+                return Ok(Instruction::Psr);
+            }
+
             Ok(Self::Alu(Alu::from(value)))
         } else if (value >> 26) & 0b01 == 0b01 {
             Ok(Self::Sdt(Sdt::from(value)))
@@ -438,6 +446,11 @@ impl Cpu {
             Instruction::Branch(b) => self.run_branch(b)?,
             Instruction::Alu(a) => self.run_alu(a)?,
             Instruction::Sdt(sdt) => self.run_sdt(sdt)?,
+            Instruction::Psr => {
+                dbg!("Ignoring Psr instructions");
+                self.pc += 4;
+                ()
+            }
         }
 
         Ok(())
