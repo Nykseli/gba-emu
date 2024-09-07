@@ -144,11 +144,54 @@ impl From<u32> for Alu {
 }
 
 #[derive(Debug)]
+struct Sdt {
+    condition: Condition,
+    immediate: bool,
+    pre: bool,
+    up: bool,
+    bit: bool,
+    tw: bool,
+    load_memory: bool,
+    rn: Register,
+    rd: Register,
+    /// Data that's executed based in immediate mode
+    operand: u32,
+}
+
+impl From<u32> for Sdt {
+    fn from(value: u32) -> Self {
+        let condition = Condition::from((value >> 28) & 0b1111);
+        let immediate = (value >> 25) & 0b1 == 0;
+        let pre = (value >> 24) & 0b1 == 1;
+        let up = (value >> 23) & 0b1 == 1;
+        let bit = (value >> 22) & 0b1 == 1;
+        let tw = (value >> 21) & 0b1 == 1;
+        let load_memory = (value >> 20) & 0b1 == 1;
+        let rn = Register::from((value >> 16) & 0b1111);
+        let rd = Register::from((value >> 12) & 0b1111);
+        let operand = value & 0xfff;
+
+        Self {
+            condition,
+            immediate,
+            pre,
+            up,
+            bit,
+            tw,
+            load_memory,
+            rn,
+            rd,
+            operand,
+        }
+    }
+}
+
+#[derive(Debug)]
 enum Instruction {
     Branch(Branch),
     Alu(Alu),
     /// Single Data Tranfer, LDR, STR, PLD
-    Sdt,
+    Sdt(Sdt),
 }
 
 // TODO: TryFrom
@@ -158,6 +201,8 @@ impl From<u32> for Instruction {
             Self::Branch(Branch::from(value))
         } else if (value >> 26) & 0b11 == 0b00 {
             Self::Alu(Alu::from(value))
+        } else if (value >> 26) & 0b01 == 0b01 {
+            Self::Sdt(Sdt::from(value))
         } else {
             unimplemented!("Unknown instuction {value:08X}")
         }
@@ -215,11 +260,23 @@ impl From<u32> for Register {
 pub struct Cpu {
     pub r0: u32,
     pub pc: u32,
+    memory: Vec<u8>,
 }
 
 impl Cpu {
     pub fn new() -> Self {
-        Default::default()
+        Self {
+            // TODO: actual memory mapping for smaller allocations
+            memory: vec![0; 0x10000000],
+            ..Default::default()
+        }
+    }
+
+    fn get_register(&self, reg: Register) -> u32 {
+        match reg {
+            Register::R0 => self.r0,
+            _ => todo!(),
+        }
     }
 
     fn set_register(&mut self, reg: Register, value: u32) {
@@ -227,6 +284,22 @@ impl Cpu {
             Register::R0 => self.r0 = value,
             _ => todo!(),
         }
+    }
+
+    fn get_memory(&mut self, offset: u32) -> u32 {
+        u32::from_le_bytes(
+            self.memory[offset as usize..offset as usize + 4]
+                .try_into()
+                .unwrap(),
+        )
+    }
+
+    fn set_memory(&mut self, offset: u32, value: u32) {
+        let bytes = value.to_le_bytes();
+        self.memory[offset as usize] = bytes[0];
+        self.memory[offset as usize + 1] = bytes[1];
+        self.memory[offset as usize + 2] = bytes[2];
+        self.memory[offset as usize + 3] = bytes[3];
     }
 
     fn run_branch(&mut self, branch: Branch) {
@@ -271,6 +344,23 @@ impl Cpu {
         }
     }
 
+    fn run_sdt(&mut self, sdt: Sdt) {
+        // TODO: properly handle condition
+        // TODO: properly handle tw (bit 21)
+        // TODO: LDR
+
+        if sdt.load_memory {
+            unimplemented!("Runnin LDR is not implemented");
+        }
+
+        if !sdt.immediate {
+            unimplemented!("Runnin SDT register offset not implemented");
+        }
+
+        self.set_memory(self.get_register(sdt.rn) + sdt.operand, self.r0);
+        self.pc += 4;
+    }
+
     fn run_next_instruction(&mut self, bytes: &[u8]) {
         let instr: Instruction = u32::from_le_bytes(
             bytes[self.pc as usize..self.pc as usize + 4]
@@ -282,7 +372,7 @@ impl Cpu {
         match instr {
             Instruction::Branch(b) => self.run_branch(b),
             Instruction::Alu(a) => self.run_alu(a),
-            Instruction::Sdt => todo!(),
+            Instruction::Sdt(sdt) => self.run_sdt(sdt),
         }
     }
 
