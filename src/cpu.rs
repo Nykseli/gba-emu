@@ -1,5 +1,12 @@
 use crate::gba_file::GBAHeader;
 
+pub enum ExecErr {
+    UnknownInstr(u32),
+    UnimplementedInstr(String),
+}
+
+pub type EResult<T> = Result<T, ExecErr>;
+
 #[derive(Debug)]
 enum Condition {
     Eq,
@@ -194,17 +201,18 @@ enum Instruction {
     Sdt(Sdt),
 }
 
-// TODO: TryFrom
-impl From<u32> for Instruction {
-    fn from(value: u32) -> Self {
+impl TryFrom<u32> for Instruction {
+    type Error = ExecErr;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
         if (value >> 25) & 0b111 == 0b101 {
-            Self::Branch(Branch::from(value))
+            Ok(Self::Branch(Branch::from(value)))
         } else if (value >> 26) & 0b11 == 0b00 {
-            Self::Alu(Alu::from(value))
+            Ok(Self::Alu(Alu::from(value)))
         } else if (value >> 26) & 0b01 == 0b01 {
-            Self::Sdt(Sdt::from(value))
+            Ok(Self::Sdt(Sdt::from(value)))
         } else {
-            unimplemented!("Unknown instuction {value:08X}")
+            Err(ExecErr::UnknownInstr(value))
         }
     }
 }
@@ -272,18 +280,26 @@ impl Cpu {
         }
     }
 
-    fn get_register(&self, reg: Register) -> u32 {
+    fn get_register(&self, reg: Register) -> EResult<u32> {
         match reg {
-            Register::R0 => self.r0,
-            _ => todo!(),
+            Register::R0 => Ok(self.r0),
+            _ => Err(ExecErr::UnimplementedInstr(format!(
+                "Register {reg:?} not implmented"
+            ))),
         }
     }
 
-    fn set_register(&mut self, reg: Register, value: u32) {
+    fn set_register(&mut self, reg: Register, value: u32) -> EResult<()> {
         match reg {
             Register::R0 => self.r0 = value,
-            _ => todo!(),
+            _ => {
+                return Err(ExecErr::UnimplementedInstr(format!(
+                    "Register {reg:?} not implmented"
+                )))
+            }
         }
+
+        Ok(())
     }
 
     fn get_memory(&mut self, offset: u32) -> u32 {
@@ -302,86 +318,137 @@ impl Cpu {
         self.memory[offset as usize + 3] = bytes[3];
     }
 
-    fn run_branch(&mut self, branch: Branch) {
+    fn run_branch(&mut self, branch: Branch) -> EResult<()> {
         // TODO: properly handle nn being signed
         // TODO: handle BL
         if branch.is_link {
-            unimplemented!("Runnin BL is not implemented");
+            return Err(ExecErr::UnimplementedInstr(
+                "Runnin BL is not implemented".into(),
+            ));
         }
 
         self.pc = self.pc + 8 + branch.nn * 4;
+        Ok(())
     }
 
-    fn run_alu(&mut self, alu: Alu) {
+    fn run_alu(&mut self, alu: Alu) -> EResult<()> {
         // TODO: condition codes
         match alu.op {
-            AluOp::And => todo!(),
-            AluOp::Eor => todo!(),
-            AluOp::Sub => todo!(),
-            AluOp::Rsb => todo!(),
-            AluOp::Add => todo!(),
-            AluOp::Adc => todo!(),
-            AluOp::Sbc => todo!(),
-            AluOp::Rsc => todo!(),
-            AluOp::Tst => todo!(),
-            AluOp::Teq => todo!(),
-            AluOp::Cmp => todo!(),
-            AluOp::Cmn => todo!(),
-            AluOp::Orr => todo!(),
+            AluOp::And => Err(ExecErr::UnimplementedInstr(
+                "AluOp::And not implemented".into(),
+            )),
+            AluOp::Eor => Err(ExecErr::UnimplementedInstr(
+                "AluOp::Eor not implemented".into(),
+            )),
+            AluOp::Sub => Err(ExecErr::UnimplementedInstr(
+                "AluOp::Sub not implemented".into(),
+            )),
+            AluOp::Rsb => Err(ExecErr::UnimplementedInstr(
+                "AluOp::Rsb not implemented".into(),
+            )),
+            AluOp::Add => Err(ExecErr::UnimplementedInstr(
+                "AluOp::Add not implemented".into(),
+            )),
+            AluOp::Adc => Err(ExecErr::UnimplementedInstr(
+                "AluOp::Adc not implemented".into(),
+            )),
+            AluOp::Sbc => Err(ExecErr::UnimplementedInstr(
+                "AluOp::Sbc not implemented".into(),
+            )),
+            AluOp::Rsc => Err(ExecErr::UnimplementedInstr(
+                "AluOp::Rsc not implemented".into(),
+            )),
+            AluOp::Tst => Err(ExecErr::UnimplementedInstr(
+                "AluOp::Tst not implemented".into(),
+            )),
+            AluOp::Teq => Err(ExecErr::UnimplementedInstr(
+                "AluOp::Teq not implemented".into(),
+            )),
+            AluOp::Cmp => Err(ExecErr::UnimplementedInstr(
+                "AluOp::Cmp not implemented".into(),
+            )),
+            AluOp::Cmn => Err(ExecErr::UnimplementedInstr(
+                "AluOp::Cmn not implemented".into(),
+            )),
+            AluOp::Orr => Err(ExecErr::UnimplementedInstr(
+                "AluOp::Orr not implemented".into(),
+            )),
             AluOp::Mov => {
                 // TODO: move register
                 if !alu.immediate {
-                    unimplemented!("AluOp::Mov register value not supported");
+                    return Err(ExecErr::UnimplementedInstr(
+                        "AluOp::Mov register value not supported".into(),
+                    ));
                 }
 
                 let rors = (alu.operand >> 8) & 0b1111;
                 let nn = alu.operand & 0b11111111;
-                self.set_register(alu.rd, nn.rotate_right(rors * 2));
+                self.set_register(alu.rd, nn.rotate_right(rors * 2))?;
                 self.pc += 4;
+                Ok(())
             }
-            AluOp::Bic => todo!(),
-            AluOp::Mvn => todo!(),
+            AluOp::Bic => Err(ExecErr::UnimplementedInstr(
+                "AluOp::Bic not implemented".into(),
+            )),
+            AluOp::Mvn => Err(ExecErr::UnimplementedInstr(
+                "AluOp::Mvn not implemented".into(),
+            )),
         }
     }
 
-    fn run_sdt(&mut self, sdt: Sdt) {
+    fn run_sdt(&mut self, sdt: Sdt) -> EResult<()> {
         // TODO: properly handle condition
         // TODO: properly handle tw (bit 21)
         // TODO: LDR
 
         if sdt.load_memory {
-            unimplemented!("Runnin LDR is not implemented");
+            return Err(ExecErr::UnimplementedInstr(
+                "Runnin LDR is not implemented".into(),
+            ));
         }
 
         if !sdt.immediate {
-            unimplemented!("Runnin SDT register offset not implemented");
+            return Err(ExecErr::UnimplementedInstr(
+                "Runnin SDT register offset not implemented".into(),
+            ));
         }
 
-        self.set_memory(self.get_register(sdt.rn) + sdt.operand, self.r0);
+        self.set_memory(self.get_register(sdt.rn)? + sdt.operand, self.r0);
         self.pc += 4;
+
+        Ok(())
     }
 
-    fn run_next_instruction(&mut self, bytes: &[u8]) {
-        let instr: Instruction = u32::from_le_bytes(
+    fn run_next_instruction(&mut self, bytes: &[u8]) -> EResult<()> {
+        let word = u32::from_le_bytes(
             bytes[self.pc as usize..self.pc as usize + 4]
                 .try_into()
                 .unwrap(),
-        )
-        .into();
+        );
+
+        let fmt = format!("Trying from word: {word:08X}");
+        dbg!(fmt);
+
+        let instr: Instruction = word.try_into()?;
+
+        let fmt = format!("Executing: {instr:#?}");
+        dbg!(fmt);
 
         match instr {
-            Instruction::Branch(b) => self.run_branch(b),
-            Instruction::Alu(a) => self.run_alu(a),
-            Instruction::Sdt(sdt) => self.run_sdt(sdt),
+            Instruction::Branch(b) => self.run_branch(b)?,
+            Instruction::Alu(a) => self.run_alu(a)?,
+            Instruction::Sdt(sdt) => self.run_sdt(sdt)?,
         }
+
+        Ok(())
     }
 
-    pub fn run_rom(&mut self, bytes: &[u8]) {
+    pub fn run_rom(&mut self, bytes: &[u8]) -> EResult<()> {
         let rom = GBAHeader::from_file(bytes);
         // self.pc = rom.rom_entry_point;
 
         loop {
-            self.run_next_instruction(bytes)
+            self.run_next_instruction(bytes)?
         }
     }
 }
