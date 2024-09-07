@@ -73,6 +73,21 @@ impl From<u32> for Branch {
 }
 
 #[derive(Debug)]
+/// BX only, since BXJ AND BLX are not supported
+struct BranchExchange {
+    condition: Condition,
+    rn: Register,
+}
+
+impl From<u32> for BranchExchange {
+    fn from(value: u32) -> Self {
+        let condition = Condition::from((value >> 28) & 0b1111);
+        let rn = Register::from(value & 0b1111);
+        Self { condition, rn }
+    }
+}
+
+#[derive(Debug)]
 enum AluOp {
     And,
     Eor,
@@ -196,6 +211,7 @@ impl From<u32> for Sdt {
 #[derive(Debug)]
 enum Instruction {
     Branch(Branch),
+    BranchExchange(BranchExchange),
     Alu(Alu),
     /// Single Data Tranfer, LDR, STR, PLD
     Sdt(Sdt),
@@ -209,6 +225,8 @@ impl TryFrom<u32> for Instruction {
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         if (value >> 25) & 0b111 == 0b101 {
             Ok(Self::Branch(Branch::from(value)))
+        } else if (value >> 8) & 0xfffff == 0b0001_0010_1111_1111_1111 {
+            Ok(Self::BranchExchange(BranchExchange::from(value)))
         } else if (value >> 26) & 0b11 == 0b00 {
             let op = AluOp::from((value >> 21) & 0b1111);
             let s = (value >> 20) & 0b1;
@@ -279,6 +297,7 @@ pub struct Cpu {
     pub sp: u32,
     /// R15
     pub pc: u32,
+    thumb: bool,
     memory: Vec<u8>,
 }
 
@@ -343,6 +362,14 @@ impl Cpu {
         }
 
         self.pc = self.pc + 8 + branch.nn * 4;
+        Ok(())
+    }
+
+    fn run_branch_exhange(&mut self, branch: BranchExchange) -> EResult<()> {
+        let reg_value = self.get_register(branch.rn)?;
+        let target = (reg_value | 1) - 1;
+        self.pc = target;
+        self.thumb = true;
         Ok(())
     }
 
@@ -460,6 +487,10 @@ impl Cpu {
                 .unwrap(),
         );
 
+        if self.thumb {
+            unimplemented!("Cannot run in thumb mode");
+        }
+
         let fmt = format!("Trying from word: {word:08X} addr: {:08X}", self.pc);
         dbg!(fmt);
 
@@ -470,6 +501,7 @@ impl Cpu {
 
         match instr {
             Instruction::Branch(b) => self.run_branch(b)?,
+            Instruction::BranchExchange(b) => self.run_branch_exhange(b)?,
             Instruction::Alu(a) => self.run_alu(a)?,
             Instruction::Sdt(sdt) => self.run_sdt(sdt)?,
             Instruction::Psr => {
