@@ -3,6 +3,7 @@ use crate::{
     instr::{
         arm::{Alu, AluOp, Branch, BranchExchange, Instruction, Sdt},
         common::{EResult, ExecErr, Register},
+        thumb::{ThumbInstr, ThumbMls, ThumbMlsOp},
     },
 };
 
@@ -229,6 +230,44 @@ impl Cpu {
         Ok(())
     }
 
+    fn run_thumb_mls(&mut self, mls: ThumbMls) -> EResult<()> {
+        match mls.op {
+            ThumbMlsOp::Ldr => {
+                let mem_offset = self.get_register(mls.rb)? + mls.nn as u32;
+                let value = self.get_memory(mem_offset);
+                self.set_register(mls.rd, value)?
+            }
+        }
+
+        self.pc += 2;
+        Ok(())
+    }
+
+    fn run_next_thumb_instr(&mut self) -> EResult<()> {
+        let half_word = u16::from_le_bytes(
+            self.memory[self.pc as usize..self.pc as usize + 2]
+                .try_into()
+                .unwrap(),
+        );
+
+        let fmt = format!(
+            "Trying from half word: {half_word:04X} addr: {:08X}",
+            self.pc
+        );
+        dbg!(fmt);
+
+        let instr: ThumbInstr = half_word.try_into()?;
+
+        let fmt = format!("Executing: {instr:#?}");
+        dbg!(fmt);
+
+        match instr {
+            ThumbInstr::Mls(mls) => self.run_thumb_mls(mls)?,
+        }
+
+        Ok(())
+    }
+
     pub fn run_rom(&mut self, bytes: &[u8]) -> EResult<()> {
         let rom = GBAHeader::from_file(bytes);
         self.pc = 0x8000000;
@@ -238,7 +277,11 @@ impl Cpu {
         }
 
         loop {
-            self.run_next_instruction()?
+            if self.thumb {
+                self.run_next_thumb_instr()?
+            } else {
+                self.run_next_instruction()?
+            }
         }
     }
 }

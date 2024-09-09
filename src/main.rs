@@ -16,6 +16,7 @@ fn main() {
         Ok(_) => todo!(),
         Err(e) => match e {
             ExecErr::UnknownInstr(instr) => println!("Unknown instr {instr:08X}"),
+            ExecErr::UnknownThumbInstr(instr) => println!("Unknown instr {instr:04X}"),
             ExecErr::UnimplementedInstr(instr) => println!("Unimplemented '{instr}'",),
         },
     }

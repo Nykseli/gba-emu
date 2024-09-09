@@ -1,5 +1,6 @@
 pub enum ExecErr {
     UnknownInstr(u32),
+    UnknownThumbInstr(u16),
     UnimplementedInstr(String),
 }
 
@@ -49,5 +50,11 @@ impl From<u32> for Register {
             15 => Self::R15,
             _ => unreachable!("Unknown register {value:x}"),
         }
+    }
+}
+
+impl From<u16> for Register {
+    fn from(value: u16) -> Self {
+        (value as u32).into()
     }
 }
