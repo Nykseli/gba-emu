@@ -3,7 +3,7 @@ use crate::{
     instr::{
         arm::{Alu, AluOp, Branch, BranchExchange, Instruction, Sdt},
         common::{EResult, ExecErr, Register},
-        thumb::{ThumbInstr, ThumbMls, ThumbMlsOp},
+        thumb::{ThumbAlu, ThumbAluOp, ThumbInstr, ThumbMls, ThumbMlsOp},
     },
 };
 
@@ -243,6 +243,21 @@ impl Cpu {
         Ok(())
     }
 
+    fn run_thumb_alu(&mut self, alu: ThumbAlu) -> EResult<()> {
+        match alu.op {
+            ThumbAluOp::Lsl => {
+                let value = self.get_register(alu.rs)?;
+                let value = (value & 0x8000) | ((value & 0x7fff) << alu.nn);
+                self.set_register(alu.rd, value)?;
+            }
+            ThumbAluOp::Lsr => todo!(),
+            ThumbAluOp::Asr => todo!(),
+        }
+
+        self.pc += 2;
+        Ok(())
+    }
+
     fn run_next_thumb_instr(&mut self) -> EResult<()> {
         let half_word = u16::from_le_bytes(
             self.memory[self.pc as usize..self.pc as usize + 2]
@@ -263,6 +278,7 @@ impl Cpu {
 
         match instr {
             ThumbInstr::Mls(mls) => self.run_thumb_mls(mls)?,
+            ThumbInstr::Alu(alu) => self.run_thumb_alu(alu)?,
         }
 
         Ok(())

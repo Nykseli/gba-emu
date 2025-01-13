@@ -17,9 +17,48 @@ pub struct ThumbMls {
 }
 
 #[derive(Debug)]
+pub enum ThumbAluOp {
+    /// logical/arithmetic shift left
+    Lsl,
+    /// logical shift right
+    Lsr,
+    /// arithmetic shift right
+    Asr,
+}
+
+#[derive(Debug)]
+pub struct ThumbAlu {
+    pub op: ThumbAluOp,
+    /// Destination register
+    pub rd: Register,
+    /// Source register
+    pub rs: Register,
+    pub nn: u16,
+}
+
+impl TryFrom<u16> for ThumbAlu {
+    type Error = ExecErr;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        let op = match (value >> 11) & 0b11 {
+            0b00 => ThumbAluOp::Lsl,
+            0b01 => ThumbAluOp::Lsr,
+            0b10 => ThumbAluOp::Asr,
+            _ => unreachable!(),
+        };
+
+        let nn = (value >> 6) & 0b11111;
+        let rs = Register::from((value >> 3) & 0b111);
+        let rd = Register::from(value & 0b111);
+
+        Ok(Self { op, nn, rs, rd })
+    }
+}
+#[derive(Debug)]
 pub enum ThumbInstr {
     /// Memory load/store
     Mls(ThumbMls),
+    Alu(ThumbAlu),
 }
 
 impl TryFrom<u16> for ThumbInstr {
@@ -39,6 +78,9 @@ impl TryFrom<u16> for ThumbInstr {
                 rb,
                 nn,
             }))
+        } else if (value >> 13) & 0b111 == 0b000 {
+            // TODO: THUMB.2: add/subtract needs to be before this
+            Ok(ThumbInstr::Alu(ThumbAlu::try_from(value)?))
         } else {
             Err(ExecErr::UnknownThumbInstr(value))
         }
