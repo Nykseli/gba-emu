@@ -17,7 +17,7 @@ pub struct ThumbMls {
 }
 
 #[derive(Debug)]
-pub enum ThumbAluOp {
+pub enum ThumbRegShiftOp {
     /// logical/arithmetic shift left
     Lsl,
     /// logical shift right
@@ -27,8 +27,8 @@ pub enum ThumbAluOp {
 }
 
 #[derive(Debug)]
-pub struct ThumbAlu {
-    pub op: ThumbAluOp,
+pub struct ThumbRegShift {
+    pub op: ThumbRegShiftOp,
     /// Destination register
     pub rd: Register,
     /// Source register
@@ -36,14 +36,14 @@ pub struct ThumbAlu {
     pub nn: u16,
 }
 
-impl TryFrom<u16> for ThumbAlu {
+impl TryFrom<u16> for ThumbRegShift {
     type Error = ExecErr;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         let op = match (value >> 11) & 0b11 {
-            0b00 => ThumbAluOp::Lsl,
-            0b01 => ThumbAluOp::Lsr,
-            0b10 => ThumbAluOp::Asr,
+            0b00 => ThumbRegShiftOp::Lsl,
+            0b01 => ThumbRegShiftOp::Lsr,
+            0b10 => ThumbRegShiftOp::Asr,
             _ => unreachable!(),
         };
 
@@ -188,7 +188,6 @@ impl TryFrom<u16> for ThumbMcas {
 pub enum ThumbInstr {
     /// Memory load/store
     Mls(ThumbMls),
-    Alu(ThumbAlu),
     /// THUMB.3: move/compare/add/subtract immediate
     Mcas(ThumbMcas),
     /// THUMB.2: add/subtract
@@ -197,6 +196,8 @@ pub enum ThumbInstr {
     Branch(ThumbBranch),
     /// THUMB.19: long branch with link
     LongBranch(ThumbLongBranch),
+    /// THUMB.1: move shifted register
+    RegShift(ThumbRegShift),
 }
 
 impl TryFrom<u16> for ThumbInstr {
@@ -219,7 +220,7 @@ impl TryFrom<u16> for ThumbInstr {
         } else if (value >> 11) & 0b11111 == 0b00011 {
             Ok(ThumbInstr::AddSub(ThumbAddSub::try_from(value)?))
         } else if (value >> 13) & 0b111 == 0b000 {
-            Ok(ThumbInstr::Alu(ThumbAlu::try_from(value)?))
+            Ok(ThumbInstr::RegShift(ThumbRegShift::try_from(value)?))
         } else if (value >> 13) & 0b111 == 0b001 {
             Ok(ThumbInstr::Mcas(ThumbMcas::try_from(value)?))
         } else if (value >> 12) & 0b1111 == 0b1101 {

@@ -6,7 +6,7 @@ use crate::{
         arm::{Alu, AluOp, Branch, BranchExchange, Instruction, Sdt},
         common::{EResult, ExecErr, Register},
         thumb::{
-            ThumbAddSub, ThumbAlu, ThumbAluOp, ThumbBranch, ThumbBranchOp, ThumbInstr,
+            ThumbAddSub, ThumbRegShift, ThumbRegShiftOp, ThumbBranch, ThumbBranchOp, ThumbInstr,
             ThumbLongBranch, ThumbMcas, ThumbMcasOp, ThumbMls, ThumbMlsOp,
         },
     },
@@ -302,19 +302,19 @@ impl Cpu {
         Ok(())
     }
 
-    fn run_thumb_alu(&mut self, alu: ThumbAlu) -> EResult<()> {
+    fn run_thumb_reg_shift(&mut self, reg_shift: ThumbRegShift) -> EResult<()> {
         let mut set_carry = true;
-        match alu.op {
-            ThumbAluOp::Lsl => {
-                let value = self.get_register(alu.rs)?;
-                let value = (value & 0x80000000) | ((value & 0x7fffffff) << alu.nn);
-                self.set_register(alu.rd, value)?;
-                if alu.nn == 0 {
+        match reg_shift.op {
+            ThumbRegShiftOp::Lsl => {
+                let value = self.get_register(reg_shift.rs)?;
+                let value = (value & 0x80000000) | ((value & 0x7fffffff) << reg_shift.nn);
+                self.set_register(reg_shift.rd, value)?;
+                if reg_shift.nn == 0 {
                     set_carry = false;
                 }
             }
-            ThumbAluOp::Lsr => todo!(),
-            ThumbAluOp::Asr => todo!(),
+            ThumbRegShiftOp::Lsr => todo!(),
+            ThumbRegShiftOp::Asr => todo!(),
         }
 
         self.zero_flag = true;
@@ -414,11 +414,11 @@ impl Cpu {
 
         match instr {
             ThumbInstr::Mls(mls) => self.run_thumb_mls(mls)?,
-            ThumbInstr::Alu(alu) => self.run_thumb_alu(alu)?,
             ThumbInstr::Mcas(mcas) => self.run_thumb_mcas(mcas)?,
             ThumbInstr::AddSub(add_sub) => self.run_add_sub(add_sub)?,
             ThumbInstr::Branch(branch) => self.run_thumb_branch(branch)?,
             ThumbInstr::LongBranch(branch) => self.run_thumb_long_branch(branch)?,
+            ThumbInstr::RegShift(reg_shift) => self.run_thumb_reg_shift(reg_shift)?,
         }
 
         Ok(())
