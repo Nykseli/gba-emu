@@ -6,9 +6,9 @@ use crate::{
         arm::{Alu, AluOp, Branch, BranchExchange, Instruction, Sdt},
         common::{EResult, ExecErr, Register},
         thumb::{
-            ThumbAddSub, ThumbAlu, ThumbAluOp, ThumbBranch, ThumbBranchOp, ThumbInstr,
-            ThumbLongBranch, ThumbMcas, ThumbMcasOp, ThumbMls, ThumbMlsOp, ThumbMultLS,
-            ThumbMultLSOp, ThumbRegShift, ThumbRegShiftOp,
+            ThumbAddSub, ThumbAlu, ThumbAluOp, ThumbBranch, ThumbBranchOp, ThumbHiReg,
+            ThumbHiRegOp, ThumbInstr, ThumbLongBranch, ThumbMcas, ThumbMcasOp, ThumbMls,
+            ThumbMlsOp, ThumbMultLS, ThumbMultLSOp, ThumbRegShift, ThumbRegShiftOp,
         },
     },
 };
@@ -84,6 +84,7 @@ impl Cpu {
             Register::R6 => Ok(self.r6),
             Register::R7 => Ok(self.r7),
             Register::R13 => Ok(self.sp),
+            Register::R14 => Ok(self.lr),
             Register::R15 => Ok(self.pc),
             _ => Err(ExecErr::UnimplementedInstr(format!(
                 "Register {reg:?} not implmented"
@@ -102,6 +103,7 @@ impl Cpu {
             Register::R6 => self.r6 = value,
             Register::R7 => self.r7 = value,
             Register::R13 => self.sp = value,
+            Register::R14 => self.lr = value,
             Register::R15 => self.pc = value,
             _ => {
                 return Err(ExecErr::UnimplementedInstr(format!(
@@ -303,6 +305,21 @@ impl Cpu {
         Ok(())
     }
 
+    fn run_thumb_hireg(&mut self, hireg: ThumbHiReg) -> EResult<()> {
+        match hireg.op {
+            ThumbHiRegOp::Bx => {
+                let destination = self.get_register(hireg.rd)?;
+                // not completely sure why 1 is anded to lr/R14 in long jump
+                // but now we have be sure it's removed
+                self.pc = destination ^ 1;
+                return Ok(());
+            }
+        }
+
+        self.pc += 2;
+        Ok(())
+    }
+
     fn run_thumb_mls(&mut self, mls: ThumbMls) -> EResult<()> {
         match mls.op {
             ThumbMlsOp::Ldr => {
@@ -428,8 +445,8 @@ impl Cpu {
     }
 
     fn run_thumb_long_branch(&mut self, branch: ThumbLongBranch) -> EResult<()> {
+        self.lr = (self.pc + 4) | 1;
         self.pc += 4 + branch.target;
-        self.lr = (self.pc + 4 + branch.target) | 1;
         Ok(())
     }
 
@@ -466,6 +483,7 @@ impl Cpu {
 
         match instr {
             ThumbInstr::Alu(alu) => self.run_thumb_alu(alu)?,
+            ThumbInstr::HiReg(hireg) => self.run_thumb_hireg(hireg)?,
             ThumbInstr::Mls(mls) => self.run_thumb_mls(mls)?,
             ThumbInstr::Mcas(mcas) => self.run_thumb_mcas(mcas)?,
             ThumbInstr::AddSub(add_sub) => self.run_add_sub(add_sub)?,
@@ -481,6 +499,7 @@ impl Cpu {
     pub fn initialize_cpu(&mut self, bytes: &[u8]) {
         let rom = GBAHeader::from_file(bytes);
         self.pc = 0x8000000;
+        self.lr = 0x8000000;
 
         for (idx, b) in bytes.iter().enumerate() {
             self.memory[self.pc as usize + idx] = *b;

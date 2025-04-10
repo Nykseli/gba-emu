@@ -31,6 +31,34 @@ impl TryFrom<u16> for ThumbAlu {
 }
 
 #[derive(Debug)]
+pub enum ThumbHiRegOp {
+    /// BX  Rs ;jump PC = Rs ;may switch THUMB/ARM
+    Bx,
+}
+
+/// THUMB.5: Hi register operations/branch exchange
+#[derive(Debug)]
+pub struct ThumbHiReg {
+    pub op: ThumbHiRegOp,
+    /// Destination register
+    pub rd: Register,
+}
+
+impl TryFrom<u16> for ThumbHiReg {
+    type Error = ExecErr;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        let op = match (value >> 8) & 0b11 {
+            3 => ThumbHiRegOp::Bx,
+            _ => unreachable!(),
+        };
+
+        let rd = Register::from((value >> 3) & 0b1111);
+        Ok(Self { op, rd })
+    }
+}
+
+#[derive(Debug)]
 pub enum ThumbMlsOp {
     Ldr,
 }
@@ -272,6 +300,8 @@ pub enum ThumbInstr {
     Mls(ThumbMls),
     /// THUMB.4: ALU operations
     Alu(ThumbAlu),
+    /// THUMB.5: Hi register operations/branch exchange
+    HiReg(ThumbHiReg),
     /// THUMB.3: move/compare/add/subtract immediate
     Mcas(ThumbMcas),
     /// THUMB.2: add/subtract
@@ -305,6 +335,8 @@ impl TryFrom<u16> for ThumbInstr {
             }))
         } else if (value >> 10) & 0b111111 == 0b010000 {
             Ok(ThumbInstr::Alu(ThumbAlu::try_from(value)?))
+        } else if (value >> 10) & 0b111111 == 0b010001 {
+            Ok(ThumbInstr::HiReg(ThumbHiReg::try_from(value)?))
         } else if (value >> 11) & 0b11111 == 0b00011 {
             Ok(ThumbInstr::AddSub(ThumbAddSub::try_from(value)?))
         } else if (value >> 13) & 0b111 == 0b000 {
