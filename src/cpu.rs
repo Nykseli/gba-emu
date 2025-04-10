@@ -283,7 +283,7 @@ impl Cpu {
         match alu.op {
             ThumbAluOp::Lsl => {
                 let value = self.get_register(alu.rs)?;
-                let value = (value & 0x8000) | ((value & 0x7fff) << alu.nn);
+                let value = (value & 0x80000000) | ((value & 0x7fffffff) << alu.nn);
                 self.set_register(alu.rd, value)?;
                 if alu.nn == 0 {
                     set_carry = false;
