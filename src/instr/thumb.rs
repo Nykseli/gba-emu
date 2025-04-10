@@ -54,11 +54,44 @@ impl TryFrom<u16> for ThumbAlu {
         Ok(Self { op, nn, rs, rd })
     }
 }
+
+#[derive(Debug)]
+pub enum ThumbBranchOp {
+    /// BCS/BHS label ;C=1 ;unsigned higher or same (carry set)
+    Bcs,
+}
+
+/// THUMB.16: conditional branch and THUMB.18: unconditional branch
+#[derive(Debug)]
+pub struct ThumbBranch {
+    pub op: ThumbBranchOp,
+    /// Signed Offset, step 2 ($+4-256..$+4+254)
+    pub offset: i16,
+}
+
+impl TryFrom<u16> for ThumbBranch {
+    type Error = ExecErr;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        let op = match (value >> 8) & 0b1111 {
+            0x2 => ThumbBranchOp::Bcs,
+            _ => unreachable!(),
+        };
+
+        // TODO: check for unsigned
+        let offset = (value & 0xff) as i16;
+
+        Ok(Self { op, offset })
+    }
+}
+
 #[derive(Debug)]
 pub enum ThumbInstr {
     /// Memory load/store
     Mls(ThumbMls),
     Alu(ThumbAlu),
+    /// (Conditional) Branch
+    Branch(ThumbBranch),
 }
 
 impl TryFrom<u16> for ThumbInstr {
@@ -81,6 +114,8 @@ impl TryFrom<u16> for ThumbInstr {
         } else if (value >> 13) & 0b111 == 0b000 {
             // TODO: THUMB.2: add/subtract needs to be before this
             Ok(ThumbInstr::Alu(ThumbAlu::try_from(value)?))
+        } else if (value >> 12) & 0b1111 == 0b1101 {
+            Ok(ThumbInstr::Branch(ThumbBranch::try_from(value)?))
         } else {
             Err(ExecErr::UnknownThumbInstr(value))
         }
