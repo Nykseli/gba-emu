@@ -37,11 +37,11 @@ pub struct Cpu {
 impl Display for Cpu {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Cpu {{")?;
-        writeln!(f, "    r0: {},", self.r0)?;
-        writeln!(f, "    r1: {},", self.r1)?;
-        writeln!(f, "    sp: {},", self.sp)?;
-        writeln!(f, "    lr: {},", self.lr)?;
-        writeln!(f, "    pc: {},", self.pc)?;
+        writeln!(f, "    r0: 0x{:08x},", self.r0)?;
+        writeln!(f, "    r1: 0x{:08x},", self.r1)?;
+        writeln!(f, "    r13/sp: 0x{:08x},", self.sp)?;
+        writeln!(f, "    r14/lr: 0x{:08x},", self.lr)?;
+        writeln!(f, "    r15/pc: 0x{:08x},", self.pc)?;
         writeln!(f, "    sign_flag: {},", self.sign_flag)?;
         writeln!(f, "    carry_flag: {},", self.carry_flag)?;
         writeln!(f, "    overflow_flag: {},", self.overflow_flag)?;
