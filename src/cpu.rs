@@ -1,3 +1,5 @@
+use std::fmt::{write, Display};
+
 use crate::{
     gba_file::GBAHeader,
     instr::{
@@ -30,6 +32,23 @@ pub struct Cpu {
     overflow_flag: bool,
     thumb: bool,
     memory: Vec<u8>,
+}
+
+impl Display for Cpu {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Cpu {{")?;
+        writeln!(f, "    r0: {},", self.r0)?;
+        writeln!(f, "    r1: {},", self.r1)?;
+        writeln!(f, "    sp: {},", self.sp)?;
+        writeln!(f, "    lr: {},", self.lr)?;
+        writeln!(f, "    pc: {},", self.pc)?;
+        writeln!(f, "    sign_flag: {},", self.sign_flag)?;
+        writeln!(f, "    carry_flag: {},", self.carry_flag)?;
+        writeln!(f, "    overflow_flag: {},", self.overflow_flag)?;
+        writeln!(f, "    thumb: {},", self.thumb)?;
+        writeln!(f, "}}")?;
+        Ok(())
+    }
 }
 
 impl Cpu {
