@@ -7,8 +7,8 @@ use crate::{
         common::{EResult, ExecErr, Register},
         thumb::{
             ThumbAddSub, ThumbAlu, ThumbAluOp, ThumbBranch, ThumbBranchOp, ThumbInstr,
-            ThumbLongBranch, ThumbMcas, ThumbMcasOp, ThumbMls, ThumbMlsOp, ThumbRegShift,
-            ThumbRegShiftOp,
+            ThumbLongBranch, ThumbMcas, ThumbMcasOp, ThumbMls, ThumbMlsOp, ThumbMultLS,
+            ThumbMultLSOp, ThumbRegShift, ThumbRegShiftOp,
         },
     },
 };
@@ -374,6 +374,22 @@ impl Cpu {
         Ok(())
     }
 
+    fn run_thumb_multiple_load_store(&mut self, multls: ThumbMultLS) -> EResult<()> {
+        match multls.op {
+            ThumbMultLSOp::STMIA => {
+                for register in multls.rlist {
+                    let memaddr = self.get_register(multls.rb)?;
+                    self.set_memory(memaddr, self.get_register(register)?);
+                    self.set_register(multls.rb, memaddr + 4);
+                }
+            }
+            ThumbMultLSOp::LDMIA => todo!(),
+        }
+
+        self.pc += 2;
+        Ok(())
+    }
+
     fn run_thumb_branch(&mut self, branch: ThumbBranch) -> EResult<()> {
         match branch.op {
             ThumbBranchOp::Beq => {
@@ -438,6 +454,7 @@ impl Cpu {
             ThumbInstr::Mls(mls) => self.run_thumb_mls(mls)?,
             ThumbInstr::Mcas(mcas) => self.run_thumb_mcas(mcas)?,
             ThumbInstr::AddSub(add_sub) => self.run_add_sub(add_sub)?,
+            ThumbInstr::MultLS(multls) => self.run_thumb_multiple_load_store(multls)?,
             ThumbInstr::Branch(branch) => self.run_thumb_branch(branch)?,
             ThumbInstr::LongBranch(branch) => self.run_thumb_long_branch(branch)?,
             ThumbInstr::RegShift(reg_shift) => self.run_thumb_reg_shift(reg_shift)?,

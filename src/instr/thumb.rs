@@ -218,6 +218,51 @@ impl TryFrom<u16> for ThumbMcas {
 }
 
 #[derive(Debug)]
+pub enum ThumbMultLSOp {
+    /// Rb!,{Rlist};store in memory, increments Rb
+    STMIA,
+    /// LDMIA Rb!,{Rlist} ;load from memory, increments Rb
+    LDMIA,
+}
+
+/// THUMB.15: multiple load/store
+#[derive(Debug)]
+pub struct ThumbMultLS {
+    pub op: ThumbMultLSOp,
+    /// Base register
+    pub rb: Register,
+    /// Register list
+    /// in order of: R0 first, R1 second ... R7 last
+    pub rlist: Vec<Register>,
+}
+
+impl TryFrom<u16> for ThumbMultLS {
+    type Error = ExecErr;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        let op = match (value >> 11) & 0b1 {
+            0 => ThumbMultLSOp::STMIA,
+            1 => ThumbMultLSOp::LDMIA,
+            _ => unreachable!(),
+        };
+
+        let rb = Register::from((value >> 8) & 0b111);
+
+        let mut list = value & 0xff;
+        let mut rlist = Vec::new();
+
+        for idx in (0..=7) {
+            if list & 1 == 1 {
+                rlist.push(Register::from(idx as u32));
+            }
+            list >>= 1;
+        }
+
+        Ok(Self { op, rb, rlist })
+    }
+}
+
+#[derive(Debug)]
 pub enum ThumbInstr {
     /// Memory load/store
     Mls(ThumbMls),
@@ -227,6 +272,8 @@ pub enum ThumbInstr {
     Mcas(ThumbMcas),
     /// THUMB.2: add/subtract
     AddSub(ThumbAddSub),
+    /// THUMB.15: multiple load/store
+    MultLS(ThumbMultLS),
     /// (Conditional) Branch
     Branch(ThumbBranch),
     /// THUMB.19: long branch with link
@@ -262,6 +309,8 @@ impl TryFrom<u16> for ThumbInstr {
             Ok(ThumbInstr::Mcas(ThumbMcas::try_from(value)?))
         } else if (value >> 12) & 0b1111 == 0b1101 {
             Ok(ThumbInstr::Branch(ThumbBranch::try_from(value)?))
+        } else if (value >> 12) & 0b1111 == 0b1100 {
+            Ok(ThumbInstr::MultLS(ThumbMultLS::try_from(value)?))
         } else if (value >> 11) & 0b11111 == 0b11110 {
             Err(ExecErr::LongInstruction)
         } else {
