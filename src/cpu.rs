@@ -376,6 +376,13 @@ impl Cpu {
 
     fn run_thumb_branch(&mut self, branch: ThumbBranch) -> EResult<()> {
         match branch.op {
+            ThumbBranchOp::Beq => {
+                if self.zero_flag {
+                    // TODO: handle signed offsets
+                    self.pc += (branch.offset * 2 + 4) as u32;
+                    return Ok(());
+                }
+            }
             ThumbBranchOp::Bcs => {
                 if self.carry_flag {
                     // TODO: handle signed offsets

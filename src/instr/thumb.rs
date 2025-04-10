@@ -87,6 +87,8 @@ impl TryFrom<u16> for ThumbRegShift {
 
 #[derive(Debug)]
 pub enum ThumbBranchOp {
+    /// BEQ label ;Z=1 ;equal (zero) (same)
+    Beq,
     /// BCS/BHS label ;C=1 ;unsigned higher or same (carry set)
     Bcs,
 }
@@ -104,6 +106,7 @@ impl TryFrom<u16> for ThumbBranch {
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         let op = match (value >> 8) & 0b1111 {
+            0x0 => ThumbBranchOp::Beq,
             0x2 => ThumbBranchOp::Bcs,
             _ => unreachable!(),
         };
