@@ -16,6 +16,12 @@ use crate::{
 pub struct Cpu {
     pub r0: u32,
     pub r1: u32,
+    pub r2: u32,
+    pub r3: u32,
+    pub r4: u32,
+    pub r5: u32,
+    pub r6: u32,
+    pub r7: u32,
     /// R13
     pub sp: u32,
     /// R14
@@ -39,6 +45,12 @@ impl Display for Cpu {
         writeln!(f, "Cpu {{")?;
         writeln!(f, "    r0: 0x{:08x},", self.r0)?;
         writeln!(f, "    r1: 0x{:08x},", self.r1)?;
+        writeln!(f, "    r2: 0x{:08x},", self.r2)?;
+        writeln!(f, "    r3: 0x{:08x},", self.r3)?;
+        writeln!(f, "    r4: 0x{:08x},", self.r4)?;
+        writeln!(f, "    r5: 0x{:08x},", self.r5)?;
+        writeln!(f, "    r6: 0x{:08x},", self.r6)?;
+        writeln!(f, "    r7: 0x{:08x},", self.r7)?;
         writeln!(f, "    r13/sp: 0x{:08x},", self.sp)?;
         writeln!(f, "    r14/lr: 0x{:08x},", self.lr)?;
         writeln!(f, "    r15/pc: 0x{:08x},", self.pc)?;
@@ -64,6 +76,12 @@ impl Cpu {
         match reg {
             Register::R0 => Ok(self.r0),
             Register::R1 => Ok(self.r1),
+            Register::R2 => Ok(self.r2),
+            Register::R3 => Ok(self.r3),
+            Register::R4 => Ok(self.r4),
+            Register::R5 => Ok(self.r5),
+            Register::R6 => Ok(self.r6),
+            Register::R7 => Ok(self.r7),
             Register::R13 => Ok(self.sp),
             Register::R15 => Ok(self.pc),
             _ => Err(ExecErr::UnimplementedInstr(format!(
@@ -76,6 +94,12 @@ impl Cpu {
         match reg {
             Register::R0 => self.r0 = value,
             Register::R1 => self.r1 = value,
+            Register::R2 => self.r2 = value,
+            Register::R3 => self.r3 = value,
+            Register::R4 => self.r4 = value,
+            Register::R5 => self.r5 = value,
+            Register::R6 => self.r6 = value,
+            Register::R7 => self.r7 = value,
             Register::R13 => self.sp = value,
             Register::R15 => self.pc = value,
             _ => {
