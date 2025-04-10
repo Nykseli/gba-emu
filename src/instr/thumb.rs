@@ -1,6 +1,36 @@
 use super::common::{EResult, ExecErr, Register};
 
 #[derive(Debug)]
+pub enum ThumbAluOp {
+    /// bit clear, Rd = Rd AND NOT Rs
+    Bic,
+}
+
+#[derive(Debug)]
+pub struct ThumbAlu {
+    pub op: ThumbAluOp,
+    /// Destination register
+    pub rd: Register,
+    /// Source register
+    pub rs: Register,
+}
+
+impl TryFrom<u16> for ThumbAlu {
+    type Error = ExecErr;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        let op = match (value >> 6) & 0b1111 {
+            0xe => ThumbAluOp::Bic,
+            _ => unreachable!(),
+        };
+
+        let rs = Register::from((value >> 3) & 0b111);
+        let rd = Register::from(value & 0b111);
+        Ok(Self { op, rd, rs })
+    }
+}
+
+#[derive(Debug)]
 pub enum ThumbMlsOp {
     Ldr,
 }
@@ -188,6 +218,8 @@ impl TryFrom<u16> for ThumbMcas {
 pub enum ThumbInstr {
     /// Memory load/store
     Mls(ThumbMls),
+    /// THUMB.4: ALU operations
+    Alu(ThumbAlu),
     /// THUMB.3: move/compare/add/subtract immediate
     Mcas(ThumbMcas),
     /// THUMB.2: add/subtract
@@ -217,6 +249,8 @@ impl TryFrom<u16> for ThumbInstr {
                 rb,
                 nn,
             }))
+        } else if (value >> 10) & 0b111111 == 0b010000 {
+            Ok(ThumbInstr::Alu(ThumbAlu::try_from(value)?))
         } else if (value >> 11) & 0b11111 == 0b00011 {
             Ok(ThumbInstr::AddSub(ThumbAddSub::try_from(value)?))
         } else if (value >> 13) & 0b111 == 0b000 {

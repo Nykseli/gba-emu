@@ -6,8 +6,9 @@ use crate::{
         arm::{Alu, AluOp, Branch, BranchExchange, Instruction, Sdt},
         common::{EResult, ExecErr, Register},
         thumb::{
-            ThumbAddSub, ThumbRegShift, ThumbRegShiftOp, ThumbBranch, ThumbBranchOp, ThumbInstr,
-            ThumbLongBranch, ThumbMcas, ThumbMcasOp, ThumbMls, ThumbMlsOp,
+            ThumbAddSub, ThumbAlu, ThumbAluOp, ThumbBranch, ThumbBranchOp, ThumbInstr,
+            ThumbLongBranch, ThumbMcas, ThumbMcasOp, ThumbMls, ThumbMlsOp, ThumbRegShift,
+            ThumbRegShiftOp,
         },
     },
 };
@@ -289,6 +290,19 @@ impl Cpu {
         Ok(())
     }
 
+    fn run_thumb_alu(&mut self, alu: ThumbAlu) -> EResult<()> {
+        match alu.op {
+            ThumbAluOp::Bic => {
+                let not = !self.get_register(alu.rs)?;
+                let value = self.get_register(alu.rd)? & not;
+                self.set_register(alu.rd, value)?;
+            }
+        }
+
+        self.pc += 2;
+        Ok(())
+    }
+
     fn run_thumb_mls(&mut self, mls: ThumbMls) -> EResult<()> {
         match mls.op {
             ThumbMlsOp::Ldr => {
@@ -346,7 +360,7 @@ impl Cpu {
                 // TODO: handle overflows
                 let value = self.get_register(op.rs)? + self.get_register(op.rn)?;
                 self.set_register(op.rd, value)?;
-            },
+            }
             ThumbAddSub::Subr(op) => {
                 // TODO: handle undeflows
                 let value = self.get_register(op.rs)? - self.get_register(op.rn)?;
@@ -413,6 +427,7 @@ impl Cpu {
         dbg!(fmt);
 
         match instr {
+            ThumbInstr::Alu(alu) => self.run_thumb_alu(alu)?,
             ThumbInstr::Mls(mls) => self.run_thumb_mls(mls)?,
             ThumbInstr::Mcas(mcas) => self.run_thumb_mcas(mcas)?,
             ThumbInstr::AddSub(add_sub) => self.run_add_sub(add_sub)?,
