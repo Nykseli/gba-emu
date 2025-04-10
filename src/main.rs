@@ -18,6 +18,9 @@ fn main() {
             ExecErr::UnknownInstr(instr) => println!("Unknown instr {instr:08X}"),
             ExecErr::UnknownThumbInstr(instr) => println!("Unknown instr {instr:04X}"),
             ExecErr::UnimplementedInstr(instr) => println!("Unimplemented '{instr}'",),
+            ExecErr::LongInstruction => {
+                println!("Unexpected state where instruction needs more bytes to execute")
+            }
         },
     }
 }

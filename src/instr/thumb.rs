@@ -1,4 +1,4 @@
-use super::common::{ExecErr, Register};
+use super::common::{EResult, ExecErr, Register};
 
 #[derive(Debug)]
 pub enum ThumbMlsOp {
@@ -85,6 +85,14 @@ impl TryFrom<u16> for ThumbBranch {
     }
 }
 
+/// THUMB.19: long branch with link
+/// Assumes that opcode is always BL, and BLX is not supported
+#[derive(Debug)]
+pub struct ThumbLongBranch {
+    /// The destination address range (PC+4)-400000h..+3FFFFEh, ie. PC+/-4M.
+    pub target: u32,
+}
+
 #[derive(Debug)]
 pub enum ThumbMcasOp {
     /// move Rd   = #nn
@@ -127,6 +135,8 @@ pub enum ThumbInstr {
     Mcas(ThumbMcas),
     /// (Conditional) Branch
     Branch(ThumbBranch),
+    /// THUMB.19: long branch with link
+    LongBranch(ThumbLongBranch),
 }
 
 impl TryFrom<u16> for ThumbInstr {
@@ -154,8 +164,26 @@ impl TryFrom<u16> for ThumbInstr {
             Ok(ThumbInstr::Mcas(ThumbMcas::try_from(value)?))
         } else if (value >> 12) & 0b1111 == 0b1101 {
             Ok(ThumbInstr::Branch(ThumbBranch::try_from(value)?))
+        } else if (value >> 11) & 0b11111 == 0b11110 {
+            Err(ExecErr::LongInstruction)
         } else {
             Err(ExecErr::UnknownThumbInstr(value))
+        }
+    }
+}
+
+impl ThumbInstr {
+    pub fn try_from_long(instr1: u16, instr2: u16) -> EResult<Self> {
+        // long branch with BL op code
+        if (instr1 >> 11) & 0b11111 == 0b11110 && (instr2 >> 11) & 0b11111 == 0b11111 {
+            let target = ((instr1 as u32) & 0x7ff) << 12 | ((instr2 as u32) & 0x7ff) << 1;
+            /*    println!("found {:08X} {:08X}", instr1, (instr1 as u32) & 0x7ff);
+            println!("found {:08X} {:08X}", instr2, (instr2 as u32) & 0x7ff);
+            panic!("found {target:08X}"); */
+            Ok(ThumbInstr::LongBranch(ThumbLongBranch { target }))
+        } else {
+            // TODO: own error for long thum instr
+            Err(ExecErr::UnknownInstr(instr1 as u32 | (instr2 as u32) << 16))
         }
     }
 }

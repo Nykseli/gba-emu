@@ -1,7 +1,10 @@
+#[derive(Debug, PartialEq)]
 pub enum ExecErr {
     UnknownInstr(u32),
     UnknownThumbInstr(u16),
     UnimplementedInstr(String),
+    /// When Execution needs more bytes to be interpreted
+    LongInstruction,
 }
 
 pub type EResult<T> = Result<T, ExecErr>;

@@ -4,8 +4,8 @@ use crate::{
         arm::{Alu, AluOp, Branch, BranchExchange, Instruction, Sdt},
         common::{EResult, ExecErr, Register},
         thumb::{
-            ThumbAlu, ThumbAluOp, ThumbBranch, ThumbBranchOp, ThumbInstr, ThumbMcas, ThumbMcasOp,
-            ThumbMls, ThumbMlsOp,
+            ThumbAlu, ThumbAluOp, ThumbBranch, ThumbBranchOp, ThumbInstr, ThumbLongBranch,
+            ThumbMcas, ThumbMcasOp, ThumbMls, ThumbMlsOp,
         },
     },
 };
@@ -16,6 +16,8 @@ pub struct Cpu {
     pub r1: u32,
     /// R13
     pub sp: u32,
+    /// R14
+    pub lr: u32,
     /// R15
     pub pc: u32,
     /// N - Sign Flag (false(0)=Not Signed, true(1)=Signed)
@@ -310,6 +312,15 @@ impl Cpu {
         Ok(())
     }
 
+    fn run_thumb_long_branch(&mut self, branch: ThumbLongBranch) -> EResult<()> {
+        // NOTE: On GBA emulators, this doesn't seem to jump to a subroutine
+        //       and only a lr register is changed
+        // self.pc = 4 + branch.target;
+        self.lr = (self.pc + 4 + branch.target) | 1;
+        self.pc += 4;
+        Ok(())
+    }
+
     fn run_next_thumb_instr(&mut self) -> EResult<()> {
         let half_word = u16::from_le_bytes(
             self.memory[self.pc as usize..self.pc as usize + 2]
@@ -323,7 +334,20 @@ impl Cpu {
         );
         dbg!(fmt);
 
-        let instr: ThumbInstr = half_word.try_into()?;
+        let instr: EResult<ThumbInstr> = half_word.try_into();
+        let instr = match instr {
+            Ok(instr) => instr,
+            Err(err) if err == ExecErr::LongInstruction => {
+                let half_word2 = u16::from_le_bytes(
+                    self.memory[self.pc as usize + 2..self.pc as usize + 4]
+                        .try_into()
+                        .unwrap(),
+                );
+
+                ThumbInstr::try_from_long(half_word, half_word2)?
+            }
+            Err(err) => return Err(err),
+        };
 
         let fmt = format!("Executing: {instr:#?}");
         dbg!(fmt);
@@ -333,6 +357,7 @@ impl Cpu {
             ThumbInstr::Alu(alu) => self.run_thumb_alu(alu)?,
             ThumbInstr::Mcas(mcas) => self.run_thumb_mcas(mcas)?,
             ThumbInstr::Branch(branch) => self.run_thumb_branch(branch)?,
+            ThumbInstr::LongBranch(branch) => self.run_thumb_long_branch(branch)?,
         }
 
         Ok(())
