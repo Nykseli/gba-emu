@@ -186,8 +186,10 @@ impl TryFrom<u16> for ThumbAddSub {
 
 #[derive(Debug)]
 pub enum ThumbMcasOp {
-    /// move Rd   = #nn
+    /// move Rd = #nn
     Mov,
+    /// Rd,#nn ;subtract Rd   = Rd - #nn
+    Sub,
 }
 
 /// THUMB.3: move/compare/add/subtract immediate
@@ -205,13 +207,12 @@ impl TryFrom<u16> for ThumbMcas {
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         let op = match (value >> 11) & 0b11 {
             0b00 => ThumbMcasOp::Mov,
+            0b11 => ThumbMcasOp::Sub,
             _ => unreachable!(),
         };
 
         let rd = Register::from((value >> 8) & 0b111);
         let nn = value & 0xff;
-
-        println!("{rd:#?}, {nn}");
 
         Ok(Self { op, nn, rd })
     }

@@ -348,6 +348,14 @@ impl Cpu {
                 self.set_register(mcas.rd.clone(), mcas.nn as u32)?;
                 self.zero_flag = self.get_register(mcas.rd)? == 0;
             }
+            ThumbMcasOp::Sub => {
+                /// TODO: handle underflow
+                self.set_register(
+                    mcas.rd.clone(),
+                    self.get_register(mcas.rd)? - mcas.nn as u32,
+                )?;
+                self.zero_flag = self.get_register(mcas.rd)? == 0;
+            }
         }
 
         self.pc += 2;
