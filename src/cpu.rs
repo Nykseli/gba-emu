@@ -342,8 +342,13 @@ impl Cpu {
 
     fn run_add_sub(&mut self, add_sub: ThumbAddSub) -> EResult<()> {
         match add_sub {
-            ThumbAddSub::Addr(op) => todo!(),
+            ThumbAddSub::Addr(op) => {
+                // TODO: handle overflows
+                let value = self.get_register(op.rs)? + self.get_register(op.rn)?;
+                self.set_register(op.rd, value)?;
+            },
             ThumbAddSub::Subr(op) => {
+                // TODO: handle undeflows
                 let value = self.get_register(op.rs)? - self.get_register(op.rn)?;
                 self.set_register(op.rd, value)?;
             }
