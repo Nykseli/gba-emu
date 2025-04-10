@@ -115,7 +115,7 @@ impl Cpu {
         Ok(())
     }
 
-    fn get_memory(&self, offset: u32) -> u32 {
+    pub fn get_memory(&self, offset: u32) -> u32 {
         u32::from_le_bytes(
             self.memory[offset as usize..offset as usize + 4]
                 .try_into()

@@ -40,6 +40,13 @@ impl Debugger {
         self.breaks.push(addr);
     }
 
+    fn print_value(&mut self, cmd: &str) {
+        let addr = cmd.split_whitespace().nth(1).unwrap();
+        let addr = u32::from_str_radix(addr, 16).unwrap();
+        let value = self.cpu.get_memory(addr);
+        println!("value found {:08x}", value);
+    }
+
     fn run_command(&mut self, cmd: &str) -> EResult<()> {
         if cmd == "q" || cmd == "quit" || cmd == "exit" {
             exit(0);
@@ -49,6 +56,8 @@ impl Debugger {
             self.run()?;
         } else if cmd == "n" || cmd == "next" {
             self.cpu.execute_next()?;
+        } else if cmd.starts_with("v ") || cmd.starts_with("value ") {
+            self.print_value(cmd);
         } else if cmd.starts_with("b ") || cmd.starts_with("break ") {
             self.add_break(cmd);
         } else {
