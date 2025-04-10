@@ -324,6 +324,8 @@ impl Cpu {
         match mls.op {
             ThumbMlsOp::Ldr => {
                 let mem_offset = self.get_register(mls.rb)? + mls.nn as u32;
+                // take (PC and not 2) into account
+                let mem_offset = mem_offset & !2;
                 let value = self.get_memory(mem_offset);
                 self.set_register(mls.rd, value)?
             }
