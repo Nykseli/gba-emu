@@ -14,6 +14,14 @@ pub struct Cpu {
     pub sp: u32,
     /// R15
     pub pc: u32,
+    /// N - Sign Flag (false(0)=Not Signed, true(1)=Signed)
+    sign_flag: bool,
+    /// Z - Zero Flag (false(0)=Not Zero, true(1)=Zero)
+    zero_flag: bool,
+    /// C - Carry Flag (false(0)=Borrow/Not Carry, true(1)=Carry/No Borrow)
+    carry_flag: bool,
+    /// V - Overflow Flag (false(0)=No Overflow, true(1)=Overflow)
+    overflow_flag: bool,
     thumb: bool,
     memory: Vec<u8>,
 }
@@ -244,14 +252,24 @@ impl Cpu {
     }
 
     fn run_thumb_alu(&mut self, alu: ThumbAlu) -> EResult<()> {
+        let mut set_carry = true;
         match alu.op {
             ThumbAluOp::Lsl => {
                 let value = self.get_register(alu.rs)?;
                 let value = (value & 0x8000) | ((value & 0x7fff) << alu.nn);
                 self.set_register(alu.rd, value)?;
+                if alu.nn == 0 {
+                    set_carry = false;
+                }
             }
             ThumbAluOp::Lsr => todo!(),
             ThumbAluOp::Asr => todo!(),
+        }
+
+        self.zero_flag = true;
+        self.sign_flag = true;
+        if set_carry {
+            self.carry_flag = true;
         }
 
         self.pc += 2;
