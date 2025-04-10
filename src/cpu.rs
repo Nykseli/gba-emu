@@ -6,8 +6,8 @@ use crate::{
         arm::{Alu, AluOp, Branch, BranchExchange, Instruction, Sdt},
         common::{EResult, ExecErr, Register},
         thumb::{
-            ThumbAlu, ThumbAluOp, ThumbBranch, ThumbBranchOp, ThumbInstr, ThumbLongBranch,
-            ThumbMcas, ThumbMcasOp, ThumbMls, ThumbMlsOp,
+            ThumbAddSub, ThumbAlu, ThumbAluOp, ThumbBranch, ThumbBranchOp, ThumbInstr,
+            ThumbLongBranch, ThumbMcas, ThumbMcasOp, ThumbMls, ThumbMlsOp,
         },
     },
 };
@@ -316,6 +316,21 @@ impl Cpu {
         Ok(())
     }
 
+    fn run_add_sub(&mut self, add_sub: ThumbAddSub) -> EResult<()> {
+        match add_sub {
+            ThumbAddSub::Addr(op) => todo!(),
+            ThumbAddSub::Subr(op) => {
+                let value = self.get_register(op.rs)? - self.get_register(op.rn)?;
+                self.set_register(op.rd, value)?;
+            }
+            ThumbAddSub::Addi(op) => todo!(),
+            ThumbAddSub::Subi(op) => todo!(),
+        }
+
+        self.pc += 2;
+        Ok(())
+    }
+
     fn run_thumb_branch(&mut self, branch: ThumbBranch) -> EResult<()> {
         match branch.op {
             ThumbBranchOp::Bcs => {
@@ -375,6 +390,7 @@ impl Cpu {
             ThumbInstr::Mls(mls) => self.run_thumb_mls(mls)?,
             ThumbInstr::Alu(alu) => self.run_thumb_alu(alu)?,
             ThumbInstr::Mcas(mcas) => self.run_thumb_mcas(mcas)?,
+            ThumbInstr::AddSub(add_sub) => self.run_add_sub(add_sub)?,
             ThumbInstr::Branch(branch) => self.run_thumb_branch(branch)?,
             ThumbInstr::LongBranch(branch) => self.run_thumb_long_branch(branch)?,
         }

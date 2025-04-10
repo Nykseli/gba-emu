@@ -93,6 +93,64 @@ pub struct ThumbLongBranch {
     pub target: u32,
 }
 
+/// THUMB.2: add/subtract immediate
+#[derive(Debug)]
+pub struct ThumbAddSubI {
+    /// Destination register
+    pub rd: Register,
+    /// Source register
+    pub rs: Register,
+    /// Immediate value
+    pub nn: u16,
+}
+
+/// THUMB.2: add/subtract register
+#[derive(Debug)]
+pub struct ThumbAddSubR {
+    /// Destination register
+    pub rd: Register,
+    /// Source register
+    pub rs: Register,
+    /// Operand register
+    pub rn: Register,
+}
+
+/// THUMB.2: add/subtract
+#[derive(Debug)]
+pub enum ThumbAddSub {
+    /// add register Rd=Rs+Rn
+    Addr(ThumbAddSubR),
+    /// subtract register Rd=Rs-Rn
+    Subr(ThumbAddSubR),
+    /// add immediate Rd=Rs+nn
+    Addi(ThumbAddSubI),
+    /// subtract immediate Rd=Rs-nn
+    Subi(ThumbAddSubI),
+}
+
+impl TryFrom<u16> for ThumbAddSub {
+    type Error = ExecErr;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        let rs = Register::from((value >> 3) & 0b111);
+        let rd = Register::from(value & 0b111);
+        let nn = (value >> 6) & 0b111;
+        let rn = Register::from(nn);
+        let register = ThumbAddSubR { rd, rs, rn };
+        let immediate = ThumbAddSubI { rd, rs, nn };
+
+        let op = match (value >> 9) & 0b11 {
+            0 => ThumbAddSub::Addr(register),
+            1 => ThumbAddSub::Subr(register),
+            2 => ThumbAddSub::Addi(immediate),
+            3 => ThumbAddSub::Subi(immediate),
+            _ => unreachable!(),
+        };
+
+        Ok(op)
+    }
+}
+
 #[derive(Debug)]
 pub enum ThumbMcasOp {
     /// move Rd   = #nn
@@ -133,6 +191,8 @@ pub enum ThumbInstr {
     Alu(ThumbAlu),
     /// THUMB.3: move/compare/add/subtract immediate
     Mcas(ThumbMcas),
+    /// THUMB.2: add/subtract
+    AddSub(ThumbAddSub),
     /// (Conditional) Branch
     Branch(ThumbBranch),
     /// THUMB.19: long branch with link
@@ -156,11 +216,11 @@ impl TryFrom<u16> for ThumbInstr {
                 rb,
                 nn,
             }))
+        } else if (value >> 11) & 0b11111 == 0b00011 {
+            Ok(ThumbInstr::AddSub(ThumbAddSub::try_from(value)?))
         } else if (value >> 13) & 0b111 == 0b000 {
-            // TODO: THUMB.2: add/subtract needs to be before this
             Ok(ThumbInstr::Alu(ThumbAlu::try_from(value)?))
         } else if (value >> 13) & 0b111 == 0b001 {
-            // TODO: THUMB.2: add/subtract needs to be before this
             Ok(ThumbInstr::Mcas(ThumbMcas::try_from(value)?))
         } else if (value >> 12) & 0b1111 == 0b1101 {
             Ok(ThumbInstr::Branch(ThumbBranch::try_from(value)?))
