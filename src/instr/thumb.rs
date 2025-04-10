@@ -86,10 +86,45 @@ impl TryFrom<u16> for ThumbBranch {
 }
 
 #[derive(Debug)]
+pub enum ThumbMcasOp {
+    /// move Rd   = #nn
+    Mov,
+}
+
+/// THUMB.3: move/compare/add/subtract immediate
+#[derive(Debug)]
+pub struct ThumbMcas {
+    pub op: ThumbMcasOp,
+    /// Destination register
+    pub rd: Register,
+    pub nn: u16,
+}
+
+impl TryFrom<u16> for ThumbMcas {
+    type Error = ExecErr;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        let op = match (value >> 11) & 0b11 {
+            0b00 => ThumbMcasOp::Mov,
+            _ => unreachable!(),
+        };
+
+        let rd = Register::from((value >> 8) & 0b111);
+        let nn = value & 0xff;
+
+        println!("{rd:#?}, {nn}");
+
+        Ok(Self { op, nn, rd })
+    }
+}
+
+#[derive(Debug)]
 pub enum ThumbInstr {
     /// Memory load/store
     Mls(ThumbMls),
     Alu(ThumbAlu),
+    /// THUMB.3: move/compare/add/subtract immediate
+    Mcas(ThumbMcas),
     /// (Conditional) Branch
     Branch(ThumbBranch),
 }
@@ -114,6 +149,9 @@ impl TryFrom<u16> for ThumbInstr {
         } else if (value >> 13) & 0b111 == 0b000 {
             // TODO: THUMB.2: add/subtract needs to be before this
             Ok(ThumbInstr::Alu(ThumbAlu::try_from(value)?))
+        } else if (value >> 13) & 0b111 == 0b001 {
+            // TODO: THUMB.2: add/subtract needs to be before this
+            Ok(ThumbInstr::Mcas(ThumbMcas::try_from(value)?))
         } else if (value >> 12) & 0b1111 == 0b1101 {
             Ok(ThumbInstr::Branch(ThumbBranch::try_from(value)?))
         } else {

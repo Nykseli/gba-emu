@@ -4,7 +4,8 @@ use crate::{
         arm::{Alu, AluOp, Branch, BranchExchange, Instruction, Sdt},
         common::{EResult, ExecErr, Register},
         thumb::{
-            ThumbAlu, ThumbAluOp, ThumbBranch, ThumbBranchOp, ThumbInstr, ThumbMls, ThumbMlsOp,
+            ThumbAlu, ThumbAluOp, ThumbBranch, ThumbBranchOp, ThumbInstr, ThumbMcas, ThumbMcasOp,
+            ThumbMls, ThumbMlsOp,
         },
     },
 };
@@ -12,6 +13,7 @@ use crate::{
 #[derive(Debug, Default)]
 pub struct Cpu {
     pub r0: u32,
+    pub r1: u32,
     /// R13
     pub sp: u32,
     /// R15
@@ -40,6 +42,7 @@ impl Cpu {
     fn get_register(&self, reg: Register) -> EResult<u32> {
         match reg {
             Register::R0 => Ok(self.r0),
+            Register::R1 => Ok(self.r1),
             Register::R13 => Ok(self.sp),
             Register::R15 => Ok(self.pc),
             _ => Err(ExecErr::UnimplementedInstr(format!(
@@ -51,6 +54,7 @@ impl Cpu {
     fn set_register(&mut self, reg: Register, value: u32) -> EResult<()> {
         match reg {
             Register::R0 => self.r0 = value,
+            Register::R1 => self.r1 = value,
             Register::R13 => self.sp = value,
             Register::R15 => self.pc = value,
             _ => {
@@ -279,6 +283,18 @@ impl Cpu {
         Ok(())
     }
 
+    fn run_thumb_mcas(&mut self, mcas: ThumbMcas) -> EResult<()> {
+        match mcas.op {
+            ThumbMcasOp::Mov => {
+                self.set_register(mcas.rd.clone(), mcas.nn as u32)?;
+                self.zero_flag = self.get_register(mcas.rd)? == 0;
+            }
+        }
+
+        self.pc += 2;
+        Ok(())
+    }
+
     fn run_thumb_branch(&mut self, branch: ThumbBranch) -> EResult<()> {
         match branch.op {
             ThumbBranchOp::Bcs => {
@@ -315,6 +331,7 @@ impl Cpu {
         match instr {
             ThumbInstr::Mls(mls) => self.run_thumb_mls(mls)?,
             ThumbInstr::Alu(alu) => self.run_thumb_alu(alu)?,
+            ThumbInstr::Mcas(mcas) => self.run_thumb_mcas(mcas)?,
             ThumbInstr::Branch(branch) => self.run_thumb_branch(branch)?,
         }
 

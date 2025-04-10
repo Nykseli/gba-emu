@@ -6,7 +6,7 @@ pub enum ExecErr {
 
 pub type EResult<T> = Result<T, ExecErr>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Register {
     R0,
     R1,
