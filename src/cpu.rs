@@ -398,20 +398,30 @@ impl Cpu {
         Ok(())
     }
 
-    pub fn run_rom(&mut self, bytes: &[u8]) -> EResult<()> {
+    pub fn initialize_cpu(&mut self, bytes: &[u8]) {
         let rom = GBAHeader::from_file(bytes);
         self.pc = 0x8000000;
 
         for (idx, b) in bytes.iter().enumerate() {
             self.memory[self.pc as usize + idx] = *b;
         }
+    }
+
+    pub fn execute_next(&mut self) -> EResult<()> {
+        if self.thumb {
+            self.run_next_thumb_instr()?;
+        } else {
+            self.run_next_instruction()?;
+        }
+
+        Ok(())
+    }
+
+    pub fn run_rom(&mut self, bytes: &[u8]) -> EResult<()> {
+        self.initialize_cpu(bytes);
 
         loop {
-            if self.thumb {
-                self.run_next_thumb_instr()?
-            } else {
-                self.run_next_instruction()?
-            }
+            self.execute_next()?
         }
     }
 }

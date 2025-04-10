@@ -1,17 +1,29 @@
-use std::fs;
+use std::{env::args, fs};
 
 use cpu::Cpu;
+use debugger::Debugger;
 use instr::common::ExecErr;
 
 mod cpu;
+mod debugger;
 mod gba_file;
 mod instr;
 
 fn main() {
+    let args: Vec<String> = args().collect();
+    let debug = args.len() > 1 && (args[1] == "d" || args[1] == "debug");
     let bytes = fs::read("demos.gba").unwrap();
 
     let mut cpu = Cpu::new();
-    let res = cpu.run_rom(&bytes);
+
+    let res = if debug {
+        let mut debugger = Debugger::new(cpu);
+        debugger.initialize(&bytes);
+        debugger.repl()
+    } else {
+        cpu.run_rom(&bytes)
+    };
+
     match res {
         Ok(_) => todo!(),
         Err(e) => match e {
