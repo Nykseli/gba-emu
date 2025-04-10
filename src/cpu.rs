@@ -347,11 +347,8 @@ impl Cpu {
     }
 
     fn run_thumb_long_branch(&mut self, branch: ThumbLongBranch) -> EResult<()> {
-        // NOTE: On GBA emulators, this doesn't seem to jump to a subroutine
-        //       and only a lr register is changed
-        // self.pc = 4 + branch.target;
+        self.pc += 4 + branch.target;
         self.lr = (self.pc + 4 + branch.target) | 1;
-        self.pc += 4;
         Ok(())
     }
 
