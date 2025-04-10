@@ -269,7 +269,8 @@ impl Cpu {
         }
 
         self.zero_flag = true;
-        self.sign_flag = true;
+        // FIXME: set sign flag properly
+        // self.sign_flag = true;
         if set_carry {
             self.carry_flag = true;
         }
