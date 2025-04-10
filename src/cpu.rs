@@ -407,6 +407,13 @@ impl Cpu {
                     return Ok(());
                 }
             }
+            ThumbBranchOp::Bne => {
+                if !self.zero_flag {
+                    // NOTE: is it save to treat pc as i32?
+                    self.pc = (self.pc as i32 + (branch.offset as i32 * 2 + 4)) as u32;
+                    return Ok(());
+                }
+            }
             ThumbBranchOp::Bcs => {
                 if self.carry_flag {
                     // TODO: handle signed offsets

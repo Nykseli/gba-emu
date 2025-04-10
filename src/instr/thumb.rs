@@ -89,6 +89,8 @@ impl TryFrom<u16> for ThumbRegShift {
 pub enum ThumbBranchOp {
     /// BEQ label ;Z=1 ;equal (zero) (same)
     Beq,
+    /// BNE label ;Z=0 ;not equal (nonzero) (not same)
+    Bne,
     /// BCS/BHS label ;C=1 ;unsigned higher or same (carry set)
     Bcs,
 }
@@ -107,12 +109,13 @@ impl TryFrom<u16> for ThumbBranch {
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         let op = match (value >> 8) & 0b1111 {
             0x0 => ThumbBranchOp::Beq,
+            0x1 => ThumbBranchOp::Bne,
             0x2 => ThumbBranchOp::Bcs,
             _ => unreachable!(),
         };
 
-        // TODO: check for unsigned
-        let offset = (value & 0xff) as i16;
+        // Hacky way to get the value as unsigned
+        let offset = (value & 0xff) as i8 as i16;
 
         Ok(Self { op, offset })
     }
