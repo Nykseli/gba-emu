@@ -31,6 +31,39 @@ impl TryFrom<u16> for ThumbAlu {
 }
 
 #[derive(Debug)]
+pub enum ThumbLsiOp {
+    /// Rd,[Rb,Ro] ;store 32bit data  WORD[Rb+Ro] = Rd
+    Str,
+}
+
+#[derive(Debug)]
+pub struct ThumbLsi {
+    pub op: ThumbLsiOp,
+    /// Unsigned offset
+    pub nn: u16,
+    /// Base Register
+    pub rb: Register,
+    /// Sourse/Destination register
+    pub rd: Register,
+}
+
+impl TryFrom<u16> for ThumbLsi {
+    type Error = ExecErr;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        let op = match (value >> 11) & 0b11 {
+            0 => ThumbLsiOp::Str,
+            _ => unreachable!(),
+        };
+
+        let nn = (value >> 6) & 0b11111;
+        let rb = Register::from((value >> 3) & 0b111);
+        let rd = Register::from(value & 0b111);
+        Ok(Self { op, rd, nn, rb })
+    }
+}
+
+#[derive(Debug)]
 pub enum ThumbHiRegOp {
     /// BX  Rs ;jump PC = Rs ;may switch THUMB/ARM
     Bx,
@@ -300,6 +333,8 @@ pub enum ThumbInstr {
     Mls(ThumbMls),
     /// THUMB.4: ALU operations
     Alu(ThumbAlu),
+    /// THUMB.9: load/store with immediate offset
+    Lsi(ThumbLsi),
     /// THUMB.5: Hi register operations/branch exchange
     HiReg(ThumbHiReg),
     /// THUMB.3: move/compare/add/subtract immediate
@@ -347,6 +382,8 @@ impl TryFrom<u16> for ThumbInstr {
             Ok(ThumbInstr::Branch(ThumbBranch::try_from(value)?))
         } else if (value >> 12) & 0b1111 == 0b1100 {
             Ok(ThumbInstr::MultLS(ThumbMultLS::try_from(value)?))
+        } else if (value >> 13) & 0b111 == 0b011 {
+            Ok(ThumbInstr::Lsi(ThumbLsi::try_from(value)?))
         } else if (value >> 11) & 0b11111 == 0b11110 {
             Err(ExecErr::LongInstruction)
         } else {

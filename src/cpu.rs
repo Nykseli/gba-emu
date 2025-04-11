@@ -7,8 +7,9 @@ use crate::{
         common::{EResult, ExecErr, Register},
         thumb::{
             ThumbAddSub, ThumbAlu, ThumbAluOp, ThumbBranch, ThumbBranchOp, ThumbHiReg,
-            ThumbHiRegOp, ThumbInstr, ThumbLongBranch, ThumbMcas, ThumbMcasOp, ThumbMls,
-            ThumbMlsOp, ThumbMultLS, ThumbMultLSOp, ThumbRegShift, ThumbRegShiftOp,
+            ThumbHiRegOp, ThumbInstr, ThumbLongBranch, ThumbLsi, ThumbLsiOp, ThumbMcas,
+            ThumbMcasOp, ThumbMls, ThumbMlsOp, ThumbMultLS, ThumbMultLSOp, ThumbRegShift,
+            ThumbRegShiftOp,
         },
     },
     logging,
@@ -313,6 +314,19 @@ impl Cpu {
         Ok(())
     }
 
+    fn run_thumb_lsi(&mut self, lsi: ThumbLsi) -> EResult<()> {
+        match lsi.op {
+            ThumbLsiOp::Str => {
+                let base_addr = self.get_register(lsi.rb)?;
+                let addr = base_addr + lsi.nn as u32;
+                self.set_memory(addr, self.get_register(lsi.rd)?);
+            }
+        }
+
+        self.pc += 2;
+        Ok(())
+    }
+
     fn run_thumb_hireg(&mut self, hireg: ThumbHiReg) -> EResult<()> {
         match hireg.op {
             ThumbHiRegOp::Bx => {
@@ -499,6 +513,7 @@ impl Cpu {
 
         match instr {
             ThumbInstr::Alu(alu) => self.run_thumb_alu(alu)?,
+            ThumbInstr::Lsi(lsi) => self.run_thumb_lsi(lsi)?,
             ThumbInstr::HiReg(hireg) => self.run_thumb_hireg(hireg)?,
             ThumbInstr::Mls(mls) => self.run_thumb_mls(mls)?,
             ThumbInstr::Mcas(mcas) => self.run_thumb_mcas(mcas)?,
