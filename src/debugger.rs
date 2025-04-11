@@ -45,6 +45,12 @@ impl Debugger {
         self.breaks.push(addr);
     }
 
+    fn add_relative_break(&mut self, cmd: &str) {
+        let addr = cmd.split_whitespace().nth(1).unwrap();
+        let addr = 0x08000000 | u32::from_str_radix(addr, 16).unwrap();
+        self.breaks.push(addr);
+    }
+
     fn print_value(&mut self, cmd: &str) {
         let addr = cmd.split_whitespace().nth(1).unwrap();
         let addr = u32::from_str_radix(addr, 16).unwrap();
@@ -69,6 +75,8 @@ impl Debugger {
             self.print_value(cmd);
         } else if cmd.starts_with("b ") || cmd.starts_with("break ") {
             self.add_break(cmd);
+        } else if cmd.starts_with("rb ") || cmd.starts_with("rbreak ") {
+            self.add_relative_break(cmd);
         } else {
             println!("Unknown command {cmd}");
         }
