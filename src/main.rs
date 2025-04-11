@@ -11,6 +11,7 @@ mod cpu;
 mod debugger;
 mod gba_file;
 mod instr;
+mod logger;
 
 fn main() {
     let args: Vec<String> = args().collect();

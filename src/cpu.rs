@@ -11,6 +11,7 @@ use crate::{
             ThumbMlsOp, ThumbMultLS, ThumbMultLSOp, ThumbRegShift, ThumbRegShiftOp,
         },
     },
+    logging,
 };
 
 #[derive(Debug, Default)]
@@ -38,6 +39,8 @@ pub struct Cpu {
     /// V - Overflow Flag (false(0)=No Overflow, true(1)=Overflow)
     overflow_flag: bool,
     thumb: bool,
+
+    logging: bool,
     memory: Vec<u8>,
 }
 
@@ -71,6 +74,10 @@ impl Cpu {
             memory: vec![0; 0x10000000],
             ..Default::default()
         }
+    }
+
+    pub fn set_logging(&mut self, logging: bool) {
+        self.logging = logging;
     }
 
     fn get_register(&self, reg: Register) -> EResult<u32> {
@@ -271,12 +278,12 @@ impl Cpu {
         }
 
         let fmt = format!("Trying from word: {word:08X} addr: {:08X}", self.pc);
-        dbg!(fmt);
+        logging!(self.logging, "{}", fmt);
 
         let instr: Instruction = word.try_into()?;
 
-        let fmt = format!("Executing: {instr:#?}");
-        dbg!(fmt);
+        let fmt = format!("Executing: {instr:?}");
+        logging!(self.logging, "{}", fmt);
 
         match instr {
             Instruction::Branch(b) => self.run_branch(b)?,
@@ -284,7 +291,7 @@ impl Cpu {
             Instruction::Alu(a) => self.run_alu(a)?,
             Instruction::Sdt(sdt) => self.run_sdt(sdt)?,
             Instruction::Psr => {
-                dbg!("Ignoring Psr instructions");
+                logging!(self.logging, "{}", "Ignoring Psr instructions");
                 self.pc += 4;
             }
         }
@@ -463,7 +470,7 @@ impl Cpu {
             "Trying from half word: {half_word:04X} addr: {:08X}",
             self.pc
         );
-        dbg!(fmt);
+        logging!(self.logging, "{}", fmt);
 
         let instr: EResult<ThumbInstr> = half_word.try_into();
         let instr = match instr {
@@ -480,8 +487,8 @@ impl Cpu {
             Err(err) => return Err(err),
         };
 
-        let fmt = format!("Executing: {instr:#?}");
-        dbg!(fmt);
+        let fmt = format!("Executing: {instr:?}");
+        logging!(self.logging, "{}", fmt);
 
         match instr {
             ThumbInstr::Alu(alu) => self.run_thumb_alu(alu)?,
