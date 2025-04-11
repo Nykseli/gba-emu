@@ -6,7 +6,7 @@ use std::{
 use crate::{cpu::Cpu, instr::common::EResult};
 
 pub struct Debugger {
-    cpu: Cpu,
+    pub cpu: Cpu,
     on_break: bool,
     breaks: Vec<u32>,
 }

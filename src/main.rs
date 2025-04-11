@@ -20,21 +20,21 @@ fn main() {
 
     let mut cpu = Cpu::new();
 
-    let res = if debug {
+    let (res, cpu) = if debug {
         let mut debugger = Debugger::new(cpu);
         debugger.initialize(&bytes);
         if args.len() > 2 {
             let data = read_to_string(&args[2]).unwrap();
-            debugger.run_file(&data)
+            (debugger.run_file(&data), debugger.cpu)
         } else {
-            debugger.repl()
+            (debugger.repl(), debugger.cpu)
         }
     } else {
-        cpu.run_rom(&bytes)
+        (cpu.run_rom(&bytes), cpu)
     };
 
     match res {
-        Ok(_) => todo!(),
+        Ok(_) => {}
         Err(e) => match e {
             ExecErr::UnknownInstr(instr) => println!("Unknown instr {instr:08X}"),
             ExecErr::UnknownThumbInstr(instr) => println!("Unknown instr {instr:04X}"),
@@ -44,4 +44,6 @@ fn main() {
             }
         },
     }
+
+    println!("{cpu}");
 }
