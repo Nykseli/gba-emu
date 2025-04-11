@@ -67,6 +67,7 @@ impl Debugger {
             self.run()?;
         } else if cmd == "n" || cmd == "next" {
             self.on_break = false;
+            self.cpu.execute_next()?
         } else if cmd == "logon" {
             self.cpu.set_logging(true);
         } else if cmd == "logoff" {
