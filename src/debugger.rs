@@ -67,6 +67,23 @@ impl Debugger {
         Ok(())
     }
 
+    pub fn run_file(&mut self, file_data: &str) -> EResult<()> {
+        for line in file_data.lines() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+
+            if line.starts_with('#') {
+                continue;
+            }
+
+            self.run_command(line)?;
+        }
+
+        Ok(())
+    }
+
     pub fn repl(&mut self) -> EResult<()> {
         loop {
             print!("> ");

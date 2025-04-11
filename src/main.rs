@@ -1,4 +1,7 @@
-use std::{env::args, fs};
+use std::{
+    env::args,
+    fs::{self, read_to_string},
+};
 
 use cpu::Cpu;
 use debugger::Debugger;
@@ -19,7 +22,12 @@ fn main() {
     let res = if debug {
         let mut debugger = Debugger::new(cpu);
         debugger.initialize(&bytes);
-        debugger.repl()
+        if args.len() > 2 {
+            let data = read_to_string(&args[2]).unwrap();
+            debugger.run_file(&data)
+        } else {
+            debugger.repl()
+        }
     } else {
         cpu.run_rom(&bytes)
     };
