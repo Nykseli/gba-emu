@@ -418,7 +418,13 @@ impl Cpu {
                     self.set_register(multls.rb, memaddr + 4);
                 }
             }
-            ThumbMultLSOp::LDMIA => todo!(),
+            ThumbMultLSOp::LDMIA => {
+                for register in multls.rlist {
+                    let memaddr = self.get_register(multls.rb)?;
+                    self.set_register(register, self.get_memory(memaddr))?;
+                    self.set_register(multls.rb, memaddr + 4);
+                }
+            }
         }
 
         self.pc += 2;
