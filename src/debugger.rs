@@ -7,6 +7,7 @@ use crate::{cpu::Cpu, instr::common::EResult};
 
 pub struct Debugger {
     cpu: Cpu,
+    on_break: bool,
     breaks: Vec<u32>,
 }
 
@@ -14,6 +15,7 @@ impl Debugger {
     pub fn new(cpu: Cpu) -> Self {
         Self {
             cpu,
+            on_break: false,
             breaks: Vec::new(),
         }
     }
@@ -24,10 +26,13 @@ impl Debugger {
 
     fn run(&mut self) -> EResult<()> {
         loop {
-            if self.breaks.contains(&self.cpu.pc) {
+            if !self.on_break && self.breaks.contains(&self.cpu.pc) {
                 println!("break on addr {:08x}", self.cpu.pc);
+                self.on_break = true;
                 break;
             }
+
+            self.on_break = false;
             self.cpu.execute_next()?;
         }
 
@@ -55,6 +60,7 @@ impl Debugger {
         } else if cmd == "r" || cmd == "run" {
             self.run()?;
         } else if cmd == "n" || cmd == "next" {
+            self.on_break = false;
             self.cpu.execute_next()?;
         } else if cmd.starts_with("v ") || cmd.starts_with("value ") {
             self.print_value(cmd);
