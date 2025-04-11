@@ -305,6 +305,7 @@ impl Cpu {
                 let not = !self.get_register(alu.rs)?;
                 let value = self.get_register(alu.rd)? & not;
                 self.set_register(alu.rd, value)?;
+                self.zero_flag = self.get_register(alu.rd)? == 0;
             }
         }
 
