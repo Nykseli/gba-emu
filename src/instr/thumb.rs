@@ -147,6 +147,53 @@ impl TryFrom<u16> for ThumbRegShift {
 }
 
 #[derive(Debug)]
+pub enum ThumbPushPopOp {
+    /// store in memory, decrements SP (R13)
+    Push,
+    /// load from memory, increments SP (R13)
+    Pop,
+}
+
+/// THUMB.14: push/pop registers
+#[derive(Debug)]
+pub struct ThumbPushPop {
+    pub op: ThumbPushPopOp,
+    /// Register list
+    /// in order of: R0 first, R1 second ... R7/R14/15 last
+    pub rlist: Vec<Register>,
+}
+
+impl TryFrom<u16> for ThumbPushPop {
+    type Error = ExecErr;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        let op = match (value >> 11) & 0b1 {
+            0 => ThumbPushPopOp::Push,
+            1 => ThumbPushPopOp::Pop,
+            _ => unreachable!(),
+        };
+
+        let mut list = value & 0xff;
+        let mut rlist = Vec::new();
+        for idx in 0..=7 {
+            if list & 1 == 1 {
+                rlist.push(Register::from(idx as u32));
+            }
+            list >>= 1;
+        }
+
+        if (value >> 8) & 1 == 1 {
+            match op {
+                ThumbPushPopOp::Push => rlist.push(Register::R14),
+                ThumbPushPopOp::Pop => rlist.push(Register::R15),
+            }
+        }
+
+        Ok(Self { op, rlist })
+    }
+}
+
+#[derive(Debug)]
 pub enum ThumbBranchOp {
     /// BEQ label ;Z=1 ;equal (zero) (same)
     Beq,
@@ -345,6 +392,8 @@ pub enum ThumbInstr {
     MultLS(ThumbMultLS),
     /// (Conditional) Branch
     Branch(ThumbBranch),
+    /// THUMB.14: push/pop registers
+    PushPop(ThumbPushPop),
     /// THUMB.19: long branch with link
     LongBranch(ThumbLongBranch),
     /// THUMB.1: move shifted register
@@ -384,6 +433,8 @@ impl TryFrom<u16> for ThumbInstr {
             Ok(ThumbInstr::MultLS(ThumbMultLS::try_from(value)?))
         } else if (value >> 13) & 0b111 == 0b011 {
             Ok(ThumbInstr::Lsi(ThumbLsi::try_from(value)?))
+        } else if (value >> 12) & 0b1111 == 0b1011 && (value >> 9) & 0b11 == 0b10 {
+            Ok(ThumbInstr::PushPop(ThumbPushPop::try_from(value)?))
         } else if (value >> 11) & 0b11111 == 0b11110 {
             Err(ExecErr::LongInstruction)
         } else {

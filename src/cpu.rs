@@ -8,8 +8,8 @@ use crate::{
         thumb::{
             ThumbAddSub, ThumbAlu, ThumbAluOp, ThumbBranch, ThumbBranchOp, ThumbHiReg,
             ThumbHiRegOp, ThumbInstr, ThumbLongBranch, ThumbLsi, ThumbLsiOp, ThumbMcas,
-            ThumbMcasOp, ThumbMls, ThumbMlsOp, ThumbMultLS, ThumbMultLSOp, ThumbRegShift,
-            ThumbRegShiftOp,
+            ThumbMcasOp, ThumbMls, ThumbMlsOp, ThumbMultLS, ThumbMultLSOp, ThumbPushPop,
+            ThumbPushPopOp, ThumbRegShift, ThumbRegShiftOp,
         },
     },
     logging,
@@ -427,6 +427,29 @@ impl Cpu {
         Ok(())
     }
 
+    fn run_thumb_push_pop(&mut self, push_pop: ThumbPushPop) -> EResult<()> {
+        match push_pop.op {
+            ThumbPushPopOp::Push => {
+                for register in push_pop.rlist {
+                    let memaddr = self.get_register(Register::R13)?;
+                    let value = self.get_register(register)?;
+                    self.set_memory(memaddr, value);
+                    self.set_register(Register::R13, memaddr - 4)?;
+                }
+            }
+            ThumbPushPopOp::Pop => {
+                for register in push_pop.rlist {
+                    let memaddr = self.get_register(Register::R13)?;
+                    self.set_register(register, self.get_memory(memaddr))?;
+                    self.set_register(Register::R13, memaddr + 4)?;
+                }
+            }
+        }
+
+        self.pc += 2;
+        Ok(())
+    }
+
     fn run_thumb_multiple_load_store(&mut self, multls: ThumbMultLS) -> EResult<()> {
         match multls.op {
             ThumbMultLSOp::STMIA => {
@@ -523,6 +546,7 @@ impl Cpu {
             ThumbInstr::Mcas(mcas) => self.run_thumb_mcas(mcas)?,
             ThumbInstr::AddSub(add_sub) => self.run_add_sub(add_sub)?,
             ThumbInstr::MultLS(multls) => self.run_thumb_multiple_load_store(multls)?,
+            ThumbInstr::PushPop(push_pop) => self.run_thumb_push_pop(push_pop)?,
             ThumbInstr::Branch(branch) => self.run_thumb_branch(branch)?,
             ThumbInstr::LongBranch(branch) => self.run_thumb_long_branch(branch)?,
             ThumbInstr::RegShift(reg_shift) => self.run_thumb_reg_shift(reg_shift)?,
