@@ -70,6 +70,10 @@ impl TryFrom<u16> for ThumbLsi {
 pub enum ThumbHiRegOp {
     /// BX  Rs ;jump PC = Rs ;may switch THUMB/ARM
     Bx,
+    /// move Rd = Rs
+    Mov,
+    /// move R8 = R8
+    Nop,
 }
 
 /// THUMB.5: Hi register operations/branch exchange
@@ -78,19 +82,30 @@ pub struct ThumbHiReg {
     pub op: ThumbHiRegOp,
     /// Destination register
     pub rd: Register,
+    /// Source register
+    pub rs: Register,
 }
 
 impl TryFrom<u16> for ThumbHiReg {
     type Error = ExecErr;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
+        let rd = Register::from((value & 0x80) >> 4 | value & 0b111);
+        let rs = Register::from((value >> 3) & 0b1111);
+
         let op = match (value >> 8) & 0b11 {
+            2 => {
+                if rd == Register::R8 && rs == Register::R8 {
+                    ThumbHiRegOp::Nop
+                } else {
+                    ThumbHiRegOp::Mov
+                }
+            }
             3 => ThumbHiRegOp::Bx,
-            _ => unreachable!(),
+            _ => return Err(ExecErr::UnknownInstr(1)),
         };
 
-        let rd = Register::from((value >> 3) & 0b1111);
-        Ok(Self { op, rd })
+        Ok(Self { op, rd, rs })
     }
 }
 

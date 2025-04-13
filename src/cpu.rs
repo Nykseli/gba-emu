@@ -338,12 +338,19 @@ impl Cpu {
     fn run_thumb_hireg(&mut self, hireg: ThumbHiReg) -> EResult<()> {
         match hireg.op {
             ThumbHiRegOp::Bx => {
-                let destination = self.get_register(hireg.rd)?;
+                let source = self.get_register(hireg.rs)?;
                 // not completely sure why 1 is anded to lr/R14 in long jump
                 // but now we have be sure it's removed
-                self.pc = destination ^ 1;
+                self.pc = source ^ 1;
                 return Ok(());
             }
+            ThumbHiRegOp::Mov => {
+                return Err(ExecErr::UnimplementedInstr(
+                    "ThumbHiRegOp::Mov not implemented".into(),
+                ))
+            }
+            // don't do anything on nop
+            ThumbHiRegOp::Nop => {}
         }
 
         self.pc += 2;
