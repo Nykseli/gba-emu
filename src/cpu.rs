@@ -514,7 +514,8 @@ impl Cpu {
 
     fn run_thumb_long_branch(&mut self, branch: ThumbLongBranch) -> EResult<()> {
         self.lr = (self.pc + 4) | 1;
-        self.pc += 4 + branch.target;
+        let val = (self.pc as i32) + 4 + branch.target;
+        self.pc = val as u32;
         Ok(())
     }
 

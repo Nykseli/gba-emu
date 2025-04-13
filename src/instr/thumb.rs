@@ -237,7 +237,7 @@ impl TryFrom<u16> for ThumbBranch {
 #[derive(Debug)]
 pub struct ThumbLongBranch {
     /// The destination address range (PC+4)-400000h..+3FFFFEh, ie. PC+/-4M.
-    pub target: u32,
+    pub target: i32,
 }
 
 /// THUMB.2: add/subtract immediate
@@ -451,9 +451,11 @@ impl ThumbInstr {
         // long branch with BL op code
         if (instr1 >> 11) & 0b11111 == 0b11110 && (instr2 >> 11) & 0b11111 == 0b11111 {
             let target = ((instr1 as u32) & 0x7ff) << 12 | ((instr2 as u32) & 0x7ff) << 1;
-            /*    println!("found {:08X} {:08X}", instr1, (instr1 as u32) & 0x7ff);
-            println!("found {:08X} {:08X}", instr2, (instr2 as u32) & 0x7ff);
-            panic!("found {target:08X}"); */
+            let target = if target > 0x3FFFFF {
+                -(((target as i32) ^ 0x7FFFFF) + 1)
+            } else {
+                target as i32
+            };
             Ok(ThumbInstr::LongBranch(ThumbLongBranch { target }))
         } else {
             // TODO: own error for long thum instr
