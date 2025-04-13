@@ -312,6 +312,10 @@ impl Cpu {
                 self.set_register(alu.rd, value)?;
                 self.zero_flag = self.get_register(alu.rd)? == 0;
             }
+            ThumbAluOp::Cmp => {
+                // TODO: other flags too
+                self.zero_flag = self.get_register(alu.rd)? - self.get_register(alu.rs)? == 0;
+            }
         }
 
         self.pc += 2;

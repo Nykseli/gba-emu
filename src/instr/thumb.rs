@@ -2,6 +2,8 @@ use super::common::{EResult, ExecErr, Register};
 
 #[derive(Debug)]
 pub enum ThumbAluOp {
+    /// compare, Void = Rd - Rs
+    Cmp,
     /// bit clear, Rd = Rd AND NOT Rs
     Bic,
 }
@@ -21,6 +23,7 @@ impl TryFrom<u16> for ThumbAlu {
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         let op = match (value >> 6) & 0b1111 {
             0xe => ThumbAluOp::Bic,
+            0xa => ThumbAluOp::Cmp,
             _ => unreachable!(),
         };
 
