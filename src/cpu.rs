@@ -257,6 +257,10 @@ impl Cpu {
             let base_addr = self.get_register(sdt.rn)?;
             // TODO: proper unsigned addition
             let addr = base_addr + sdt.operand;
+            let addr = match sdt.rn {
+                Register::R15 => addr + 8,
+                _ => addr,
+            };
             self.set_register(sdt.rd, self.get_memory(addr))?;
         } else {
             self.set_memory(self.get_register(sdt.rn)? + sdt.operand, self.r0);
