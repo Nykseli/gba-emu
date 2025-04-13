@@ -345,9 +345,8 @@ impl Cpu {
                 return Ok(());
             }
             ThumbHiRegOp::Mov => {
-                return Err(ExecErr::UnimplementedInstr(
-                    "ThumbHiRegOp::Mov not implemented".into(),
-                ))
+                let value = self.get_register(hireg.rs)?;
+                self.set_register(hireg.rd, value)?;
             }
             // don't do anything on nop
             ThumbHiRegOp::Nop => {}
