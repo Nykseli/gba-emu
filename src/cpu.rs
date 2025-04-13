@@ -373,7 +373,14 @@ impl Cpu {
                 }
             }
             ThumbRegShiftOp::Lsr => todo!(),
-            ThumbRegShiftOp::Asr => todo!(),
+            ThumbRegShiftOp::Asr => {
+                let value = self.get_register(reg_shift.rs)?;
+                let value = (value & 0x80000000) | ((value & 0x7fffffff) >> reg_shift.nn);
+                self.set_register(reg_shift.rd, value)?;
+                if reg_shift.nn == 0 {
+                    set_carry = false;
+                }
+            }
         }
 
         self.zero_flag = true;
