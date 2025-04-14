@@ -447,11 +447,11 @@ impl Cpu {
     fn run_thumb_push_pop(&mut self, push_pop: ThumbPushPop) -> EResult<()> {
         match push_pop.op {
             ThumbPushPopOp::Push => {
-                for register in push_pop.rlist {
-                    let memaddr = self.get_register(Register::R13)?;
-                    let value = self.get_register(register)?;
+                for register in push_pop.rlist.iter().rev() {
+                    let memaddr = self.get_register(Register::R13)? - 4;
+                    let value = self.get_register(*register)?;
                     self.set_memory(memaddr, value);
-                    self.set_register(Register::R13, memaddr - 4)?;
+                    self.set_register(Register::R13, memaddr)?;
                 }
             }
             ThumbPushPopOp::Pop => {
@@ -599,5 +599,72 @@ impl Cpu {
         loop {
             self.execute_next()?
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_thumb_push_pop() {
+        // test from a demo program
+        let isntrs = [0xB5F8, 0x46C0, 0xBCF8, 0xBC08, 0x469E];
+        let isntrs: Vec<u8> = isntrs
+            .map(u16::to_le_bytes)
+            .iter()
+            .flatten()
+            .map(|c| *c)
+            .collect();
+        let mut cpu = Cpu::new();
+        cpu.r0 = 0x02040000;
+        cpu.r1 = 0x0300001c;
+        cpu.r2 = 0x02000000;
+        cpu.r3 = 0x03000020;
+        cpu.r4 = 0x02000000;
+        cpu.r5 = 0x03000020;
+        cpu.r6 = 0x00000000;
+        cpu.r7 = 0x00000000;
+        cpu.sp = 0x03007ef0;
+        cpu.lr = 0x080002bd;
+        cpu.pc = 0x08000210;
+        cpu.thumb = true;
+
+        for (idx, instr) in isntrs.iter().enumerate() {
+            cpu.memory[cpu.pc as usize + idx] = *instr;
+        }
+
+        // push r3-r7,r14
+        cpu.execute_next().unwrap();
+        assert_eq!(cpu.get_memory(0x03007eec), 0x080002bd);
+        assert_eq!(cpu.get_memory(0x03007ee8), 0x00000000);
+        assert_eq!(cpu.get_memory(0x03007ee4), 0x00000000);
+        assert_eq!(cpu.get_memory(0x03007ee0), 0x03000020);
+        assert_eq!(cpu.get_memory(0x03007edc), 0x02000000);
+        assert_eq!(cpu.get_memory(0x03007ed8), 0x03000020);
+        assert_eq!(cpu.sp, 0x03007ed8);
+
+        // no-op
+        cpu.execute_next().unwrap();
+
+        // pop r3-r7
+        cpu.execute_next().unwrap();
+        assert_eq!(cpu.r3, 0x03000020);
+        assert_eq!(cpu.r4, 0x02000000);
+        assert_eq!(cpu.r5, 0x03000020);
+        assert_eq!(cpu.r6, 0x00000000);
+        assert_eq!(cpu.r7, 0x00000000);
+        assert_eq!(cpu.sp, 0x03007eec);
+
+        // pop r3
+        cpu.execute_next().unwrap();
+        assert_eq!(cpu.r3, 0x080002bd);
+        assert_eq!(cpu.sp, 0x03007ef0);
+
+        // mov r14, r3
+        cpu.execute_next().unwrap();
+        assert_eq!(cpu.r3, 0x080002bd);
+        assert_eq!(cpu.lr, 0x080002bd);
+        assert_eq!(cpu.sp, 0x03007ef0);
     }
 }
