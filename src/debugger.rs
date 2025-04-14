@@ -108,9 +108,7 @@ impl Debugger {
             io::stdout().flush().unwrap();
             let mut cmd = String::new();
             let _ = io::stdin().lock().read_line(&mut cmd).unwrap();
-            self.run_command(&cmd.trim())?;
+            self.run_command(cmd.trim())?;
         }
-
-        Ok(())
     }
 }

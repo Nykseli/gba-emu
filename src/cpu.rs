@@ -1,4 +1,4 @@
-use std::fmt::{write, Display};
+use std::fmt::Display;
 
 use crate::{
     gba_file::GBAHeader,
@@ -435,7 +435,7 @@ impl Cpu {
     fn run_thumb_mcas(&mut self, mcas: ThumbMcas) -> EResult<()> {
         match mcas.op {
             ThumbMcasOp::Mov => {
-                self.set_register(mcas.rd.clone(), mcas.nn as u32)?;
+                self.set_register(mcas.rd, mcas.nn as u32)?;
                 self.zero_flag = self.get_register(mcas.rd)? == 0;
             }
             ThumbMcasOp::Cmp => {
@@ -443,18 +443,12 @@ impl Cpu {
                 self.zero_flag = self.get_register(mcas.rd)? == mcas.nn as u32;
             }
             ThumbMcasOp::Add => {
-                self.set_register(
-                    mcas.rd.clone(),
-                    self.get_register(mcas.rd)? + mcas.nn as u32,
-                )?;
+                self.set_register(mcas.rd, self.get_register(mcas.rd)? + mcas.nn as u32)?;
                 self.zero_flag = self.get_register(mcas.rd)? == 0;
             }
             ThumbMcasOp::Sub => {
-                /// TODO: handle underflow
-                self.set_register(
-                    mcas.rd.clone(),
-                    self.get_register(mcas.rd)? - mcas.nn as u32,
-                )?;
+                // TODO: handle underflow
+                self.set_register(mcas.rd, self.get_register(mcas.rd)? - mcas.nn as u32)?;
                 self.zero_flag = self.get_register(mcas.rd)? == 0;
             }
         }
@@ -475,8 +469,8 @@ impl Cpu {
                 let value = self.get_register(op.rs)? - self.get_register(op.rn)?;
                 self.set_register(op.rd, value)?;
             }
-            ThumbAddSub::Addi(op) => todo!(),
-            ThumbAddSub::Subi(op) => todo!(),
+            ThumbAddSub::Addi(_) => todo!(),
+            ThumbAddSub::Subi(_) => todo!(),
         }
 
         self.pc += 2;
@@ -508,18 +502,18 @@ impl Cpu {
 
     fn run_thumb_multiple_load_store(&mut self, multls: ThumbMultLS) -> EResult<()> {
         match multls.op {
-            ThumbMultLSOp::STMIA => {
+            ThumbMultLSOp::Stmia => {
                 for register in multls.rlist {
                     let memaddr = self.get_register(multls.rb)?;
                     self.set_memory(memaddr, self.get_register(register)?);
-                    self.set_register(multls.rb, memaddr + 4);
+                    self.set_register(multls.rb, memaddr + 4)?
                 }
             }
-            ThumbMultLSOp::LDMIA => {
+            ThumbMultLSOp::Ldmia => {
                 for register in multls.rlist {
                     let memaddr = self.get_register(multls.rb)?;
                     self.set_register(register, self.get_memory(memaddr))?;
-                    self.set_register(multls.rb, memaddr + 4);
+                    self.set_register(multls.rb, memaddr + 4)?
                 }
             }
         }
@@ -597,7 +591,7 @@ impl Cpu {
         let instr: EResult<ThumbInstr> = half_word.try_into();
         let instr = match instr {
             Ok(instr) => instr,
-            Err(err) if err == ExecErr::LongInstruction => {
+            Err(ExecErr::LongInstruction) => {
                 let half_word2 = u16::from_le_bytes(
                     self.memory[self.pc as usize + 2..self.pc as usize + 4]
                         .try_into()
@@ -632,7 +626,7 @@ impl Cpu {
     }
 
     pub fn initialize_cpu(&mut self, bytes: &[u8]) {
-        let rom = GBAHeader::from_file(bytes);
+        let _rom = GBAHeader::from_file(bytes);
         self.pc = 0x8000000;
         self.lr = 0x8000000;
 
@@ -654,7 +648,7 @@ impl Cpu {
     pub fn run_rom(&mut self, bytes: &[u8], breakloop: bool) -> EResult<()> {
         self.initialize_cpu(bytes);
 
-        while !breakloop || (breakloop && self.loop_detected) {
+        while !breakloop || self.loop_detected {
             self.execute_next()?
         }
 

@@ -124,7 +124,7 @@ impl TryFrom<u16> for ThumbHiReg {
     type Error = ExecErr;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
-        let rd = Register::from((value & 0x80) >> 4 | value & 0b111);
+        let rd = Register::from(((value & 0x80) >> 4) | value & 0b111);
         let rs = Register::from((value >> 3) & 0b1111);
 
         let op = match (value >> 8) & 0b11 {
@@ -298,7 +298,7 @@ impl TryFrom<u16> for ThumbUBranch {
         let offset = if value & 0x200 == 0x200 {
             -(((offset) ^ 0x3ff) + 1)
         } else {
-            offset as i16
+            offset
         };
 
         Ok(Self { offset })
@@ -315,6 +315,7 @@ pub struct ThumbLongBranch {
 
 /// THUMB.2: add/subtract immediate
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ThumbAddSubI {
     /// Destination register
     pub rd: Register,
@@ -337,6 +338,7 @@ pub struct ThumbAddSubR {
 
 /// THUMB.2: add/subtract
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum ThumbAddSub {
     /// add register Rd=Rs+Rn
     Addr(ThumbAddSubR),
@@ -414,9 +416,9 @@ impl TryFrom<u16> for ThumbMcas {
 #[derive(Debug)]
 pub enum ThumbMultLSOp {
     /// Rb!,{Rlist};store in memory, increments Rb
-    STMIA,
+    Stmia,
     /// LDMIA Rb!,{Rlist} ;load from memory, increments Rb
-    LDMIA,
+    Ldmia,
 }
 
 /// THUMB.15: multiple load/store
@@ -435,8 +437,8 @@ impl TryFrom<u16> for ThumbMultLS {
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         let op = match (value >> 11) & 0b1 {
-            0 => ThumbMultLSOp::STMIA,
-            1 => ThumbMultLSOp::LDMIA,
+            0 => ThumbMultLSOp::Stmia,
+            1 => ThumbMultLSOp::Ldmia,
             _ => unreachable!(),
         };
 
@@ -445,7 +447,7 @@ impl TryFrom<u16> for ThumbMultLS {
         let mut list = value & 0xff;
         let mut rlist = Vec::new();
 
-        for idx in (0..=7) {
+        for idx in 0..=7 {
             if list & 1 == 1 {
                 rlist.push(Register::from(idx as u32));
             }
@@ -537,7 +539,7 @@ impl ThumbInstr {
     pub fn try_from_long(instr1: u16, instr2: u16) -> EResult<Self> {
         // long branch with BL op code
         if (instr1 >> 11) & 0b11111 == 0b11110 && (instr2 >> 11) & 0b11111 == 0b11111 {
-            let target = ((instr1 as u32) & 0x7ff) << 12 | ((instr2 as u32) & 0x7ff) << 1;
+            let target = (((instr1 as u32) & 0x7ff) << 12) | (((instr2 as u32) & 0x7ff) << 1);
             let target = if target > 0x3FFFFF {
                 -(((target as i32) ^ 0x7FFFFF) + 1)
             } else {
@@ -546,7 +548,9 @@ impl ThumbInstr {
             Ok(ThumbInstr::LongBranch(ThumbLongBranch { target }))
         } else {
             // TODO: own error for long thum instr
-            Err(ExecErr::UnknownInstr(instr1 as u32 | (instr2 as u32) << 16))
+            Err(ExecErr::UnknownInstr(
+                instr1 as u32 | ((instr2 as u32) << 16),
+            ))
         }
     }
 }

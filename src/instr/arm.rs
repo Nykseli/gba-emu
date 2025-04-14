@@ -45,6 +45,7 @@ impl From<u32> for Condition {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Branch {
     pub condition: Condition,
     /// is B or BL, true for Bl
@@ -66,6 +67,7 @@ impl From<u32> for Branch {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 /// BX only, since BXJ AND BLX are not supported
 pub struct BranchExchange {
     pub condition: Condition,
@@ -125,6 +127,7 @@ impl From<u32> for AluOp {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Alu {
     pub condition: Condition,
     pub immediate: bool,
@@ -159,6 +162,7 @@ impl From<u32> for Alu {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Sdt {
     pub condition: Condition,
     pub immediate: bool,
