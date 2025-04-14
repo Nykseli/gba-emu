@@ -60,6 +60,7 @@ impl Display for Cpu {
         writeln!(f, "    r14/lr: 0x{:08x},", self.lr)?;
         writeln!(f, "    r15/pc: 0x{:08x},", self.pc)?;
         writeln!(f, "    sign_flag: {},", self.sign_flag)?;
+        writeln!(f, "    zero_flag: {},", self.zero_flag)?;
         writeln!(f, "    carry_flag: {},", self.carry_flag)?;
         writeln!(f, "    overflow_flag: {},", self.overflow_flag)?;
         writeln!(f, "    thumb: {},", self.thumb)?;
