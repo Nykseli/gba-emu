@@ -317,6 +317,8 @@ impl TryFrom<u16> for ThumbAddSub {
 pub enum ThumbMcasOp {
     /// move Rd = #nn
     Mov,
+    /// Rd,#nn ;add      Rd   = Rd + #nn
+    Add,
     /// Rd,#nn ;subtract Rd   = Rd - #nn
     Sub,
 }
@@ -336,6 +338,7 @@ impl TryFrom<u16> for ThumbMcas {
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         let op = match (value >> 11) & 0b11 {
             0b00 => ThumbMcasOp::Mov,
+            0b10 => ThumbMcasOp::Add,
             0b11 => ThumbMcasOp::Sub,
             _ => unreachable!(),
         };
