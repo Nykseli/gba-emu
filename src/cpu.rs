@@ -41,6 +41,8 @@ pub struct Cpu {
     overflow_flag: bool,
     thumb: bool,
 
+    /// Has cpu encountered a state where branch jumps into itself
+    loop_detected: bool,
     logging: bool,
     memory: Vec<u8>,
 }
@@ -527,7 +529,12 @@ impl Cpu {
     }
 
     fn run_thumb_ubranch(&mut self, ubranch: ThumbUBranch) -> EResult<()> {
-        self.pc += (ubranch.offset * 2 + 4) as u32;
+        let offset = (ubranch.offset * 2 + 4) as u32;
+        if offset == 0 {
+            self.loop_detected = true;
+        }
+
+        self.pc += offset;
         Ok(())
     }
 
@@ -644,12 +651,15 @@ impl Cpu {
         Ok(())
     }
 
-    pub fn run_rom(&mut self, bytes: &[u8]) -> EResult<()> {
+    pub fn run_rom(&mut self, bytes: &[u8], breakloop: bool) -> EResult<()> {
         self.initialize_cpu(bytes);
 
-        loop {
+        while !breakloop || (breakloop && self.loop_detected) {
             self.execute_next()?
         }
+
+        println!("Loop detected. Done with running the rom");
+        Ok(())
     }
 }
 

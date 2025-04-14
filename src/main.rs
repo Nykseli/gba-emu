@@ -30,7 +30,7 @@ fn main() {
             (debugger.repl(), debugger.cpu)
         }
     } else {
-        (cpu.run_rom(&bytes), cpu)
+        (cpu.run_rom(&bytes, true), cpu)
     };
 
     match res {
