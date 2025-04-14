@@ -7,8 +7,8 @@ use crate::{
         common::{EResult, ExecErr, Register},
         thumb::{
             ThumbAddSub, ThumbAlu, ThumbAluOp, ThumbBranch, ThumbBranchOp, ThumbHiReg,
-            ThumbHiRegOp, ThumbInstr, ThumbLongBranch, ThumbLsi, ThumbLsiOp, ThumbMcas,
-            ThumbMcasOp, ThumbMls, ThumbMlsOp, ThumbMultLS, ThumbMultLSOp, ThumbPushPop,
+            ThumbHiRegOp, ThumbInstr, ThumbLongBranch, ThumbLsh, ThumbLshOp, ThumbLsi, ThumbLsiOp,
+            ThumbMcas, ThumbMcasOp, ThumbMls, ThumbMlsOp, ThumbMultLS, ThumbMultLSOp, ThumbPushPop,
             ThumbPushPopOp, ThumbRegShift, ThumbRegShiftOp,
         },
     },
@@ -138,6 +138,12 @@ impl Cpu {
         self.memory[offset as usize + 1] = bytes[1];
         self.memory[offset as usize + 2] = bytes[2];
         self.memory[offset as usize + 3] = bytes[3];
+    }
+
+    fn set_memory_u16(&mut self, offset: u32, value: u16) {
+        let bytes = value.to_le_bytes();
+        self.memory[offset as usize] = bytes[0];
+        self.memory[offset as usize + 1] = bytes[1];
     }
 
     fn run_branch(&mut self, branch: Branch) -> EResult<()> {
@@ -329,6 +335,25 @@ impl Cpu {
                 let base_addr = self.get_register(lsi.rb)?;
                 let addr = base_addr + lsi.nn as u32;
                 self.set_memory(addr, self.get_register(lsi.rd)?);
+            }
+        }
+
+        self.pc += 2;
+        Ok(())
+    }
+
+    fn run_thumb_lsh(&mut self, lsh: ThumbLsh) -> EResult<()> {
+        match lsh.op {
+            ThumbLshOp::Strh => {
+                let base_addr = self.get_register(lsh.rb)?;
+                let mem_address = base_addr + (lsh.nn as u32) * 2;
+
+                let value_u32 = self.get_register(lsh.rd)?;
+
+                // get the two less significant bytes
+                // NOTE: does this work on big-endian machine?
+                let value_u16 = value_u32 as u16;
+                self.set_memory_u16(mem_address, value_u16);
             }
         }
 
@@ -577,6 +602,7 @@ impl Cpu {
 
         match instr {
             ThumbInstr::Alu(alu) => self.run_thumb_alu(alu)?,
+            ThumbInstr::Lsh(lsh) => self.run_thumb_lsh(lsh)?,
             ThumbInstr::Lsi(lsi) => self.run_thumb_lsi(lsi)?,
             ThumbInstr::HiReg(hireg) => self.run_thumb_hireg(hireg)?,
             ThumbInstr::Mls(mls) => self.run_thumb_mls(mls)?,
