@@ -648,7 +648,7 @@ impl Cpu {
     pub fn run_rom(&mut self, bytes: &[u8], breakloop: bool) -> EResult<()> {
         self.initialize_cpu(bytes);
 
-        while !breakloop || self.loop_detected {
+        while !breakloop || !self.loop_detected {
             self.execute_next()?
         }
 
