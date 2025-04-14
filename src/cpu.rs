@@ -410,6 +410,10 @@ impl Cpu {
                 self.set_register(mcas.rd.clone(), mcas.nn as u32)?;
                 self.zero_flag = self.get_register(mcas.rd)? == 0;
             }
+            ThumbMcasOp::Cmp => {
+                // TODO: set other flags
+                self.zero_flag = self.get_register(mcas.rd)? == mcas.nn as u32;
+            }
             ThumbMcasOp::Add => {
                 self.set_register(
                     mcas.rd.clone(),
