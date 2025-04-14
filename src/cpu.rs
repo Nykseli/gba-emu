@@ -9,7 +9,7 @@ use crate::{
             ThumbAddSub, ThumbAlu, ThumbAluOp, ThumbBranch, ThumbBranchOp, ThumbHiReg,
             ThumbHiRegOp, ThumbInstr, ThumbLongBranch, ThumbLsh, ThumbLshOp, ThumbLsi, ThumbLsiOp,
             ThumbMcas, ThumbMcasOp, ThumbMls, ThumbMlsOp, ThumbMultLS, ThumbMultLSOp, ThumbPushPop,
-            ThumbPushPopOp, ThumbRegShift, ThumbRegShiftOp,
+            ThumbPushPopOp, ThumbRegShift, ThumbRegShiftOp, ThumbUBranch,
         },
     },
     logging,
@@ -526,6 +526,11 @@ impl Cpu {
         Ok(())
     }
 
+    fn run_thumb_ubranch(&mut self, ubranch: ThumbUBranch) -> EResult<()> {
+        self.pc += (ubranch.offset * 2 + 4) as u32;
+        Ok(())
+    }
+
     fn run_thumb_branch(&mut self, branch: ThumbBranch) -> EResult<()> {
         match branch.op {
             ThumbBranchOp::Beq => {
@@ -611,6 +616,7 @@ impl Cpu {
             ThumbInstr::MultLS(multls) => self.run_thumb_multiple_load_store(multls)?,
             ThumbInstr::PushPop(push_pop) => self.run_thumb_push_pop(push_pop)?,
             ThumbInstr::Branch(branch) => self.run_thumb_branch(branch)?,
+            ThumbInstr::UBranch(ubranch) => self.run_thumb_ubranch(ubranch)?,
             ThumbInstr::LongBranch(branch) => self.run_thumb_long_branch(branch)?,
             ThumbInstr::RegShift(reg_shift) => self.run_thumb_reg_shift(reg_shift)?,
         }

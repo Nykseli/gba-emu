@@ -284,6 +284,27 @@ impl TryFrom<u16> for ThumbBranch {
     }
 }
 
+/// THUMB.18: unconditional branch
+#[derive(Debug)]
+pub struct ThumbUBranch {
+    pub offset: i16,
+}
+
+impl TryFrom<u16> for ThumbUBranch {
+    type Error = ExecErr;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        let offset = (value & 0x3ff) as i16;
+        let offset = if value & 0x200 == 0x200 {
+            -(((offset) ^ 0x3ff) + 1)
+        } else {
+            offset as i16
+        };
+
+        Ok(Self { offset })
+    }
+}
+
 /// THUMB.19: long branch with link
 /// Assumes that opcode is always BL, and BLX is not supported
 #[derive(Debug)]
@@ -455,6 +476,8 @@ pub enum ThumbInstr {
     MultLS(ThumbMultLS),
     /// (Conditional) Branch
     Branch(ThumbBranch),
+    /// THUMB.18: unconditional branch
+    UBranch(ThumbUBranch),
     /// THUMB.14: push/pop registers
     PushPop(ThumbPushPop),
     /// THUMB.19: long branch with link
@@ -492,6 +515,8 @@ impl TryFrom<u16> for ThumbInstr {
             Ok(ThumbInstr::Mcas(ThumbMcas::try_from(value)?))
         } else if (value >> 12) & 0b1111 == 0b1101 {
             Ok(ThumbInstr::Branch(ThumbBranch::try_from(value)?))
+        } else if (value >> 11) & 0b11111 == 0b11100 {
+            Ok(ThumbInstr::UBranch(ThumbUBranch::try_from(value)?))
         } else if (value >> 12) & 0b1111 == 0b1100 {
             Ok(ThumbInstr::MultLS(ThumbMultLS::try_from(value)?))
         } else if (value >> 12) & 0b1111 == 0b1000 {
