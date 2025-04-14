@@ -219,6 +219,8 @@ pub enum ThumbBranchOp {
     Bne,
     /// BCS/BHS label ;C=1 ;unsigned higher or same (carry set)
     Bcs,
+    /// BHI label ;C=1 and Z=0 ;unsigned higher
+    Bhi,
 }
 
 /// THUMB.16: conditional branch and THUMB.18: unconditional branch
@@ -237,6 +239,7 @@ impl TryFrom<u16> for ThumbBranch {
             0x0 => ThumbBranchOp::Beq,
             0x1 => ThumbBranchOp::Bne,
             0x2 => ThumbBranchOp::Bcs,
+            0x8 => ThumbBranchOp::Bhi,
             _ => unreachable!(),
         };
 

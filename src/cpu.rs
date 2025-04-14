@@ -524,6 +524,13 @@ impl Cpu {
                     return Ok(());
                 }
             }
+            ThumbBranchOp::Bhi => {
+                if self.carry_flag && !self.zero_flag {
+                    // NOTE: is it save to treat pc as i32?
+                    self.pc = (self.pc as i32 + (branch.offset as i32 * 2 + 4)) as u32;
+                    return Ok(());
+                }
+            }
         }
 
         self.pc += 2;
