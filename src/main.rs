@@ -6,12 +6,14 @@ use std::{
 use cpu::Cpu;
 use debugger::Debugger;
 use instr::common::ExecErr;
+use video::Video;
 
 mod cpu;
 mod debugger;
 mod gba_file;
 mod instr;
 mod logger;
+mod video;
 
 fn main() {
     let args: Vec<String> = args().collect();
@@ -46,4 +48,8 @@ fn main() {
     }
 
     println!("{cpu}");
+
+    let video = Video::new(cpu);
+    video.initialize_screen();
+    video.draw();
 }

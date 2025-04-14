@@ -134,6 +134,14 @@ impl Cpu {
         )
     }
 
+    pub fn get_memory_u16(&self, offset: u32) -> u16 {
+        u16::from_le_bytes(
+            self.memory[offset as usize..offset as usize + 2]
+                .try_into()
+                .unwrap(),
+        )
+    }
+
     fn set_memory(&mut self, offset: u32, value: u32) {
         let bytes = value.to_le_bytes();
         self.memory[offset as usize] = bytes[0];
