@@ -1,7 +1,7 @@
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
-use sdl2::rect::Point;
+use sdl2::rect::{Point, Rect};
 use std::time::Duration;
 
 use crate::cpu::Cpu;
@@ -14,6 +14,8 @@ pub struct Video {
 const GBA_VIDEO_WIDTH: u32 = 240;
 /// Height of a real GBA screen in pixels
 const GBA_VIDEO_HEIGHT: u32 = 160;
+
+const VIDEO_SCALE: u32 = 6;
 
 impl Video {
     pub fn new(cpu: Cpu) -> Self {
@@ -54,7 +56,11 @@ impl Video {
         let video_subsystem = sdl_context.video().unwrap();
 
         let window = video_subsystem
-            .window("GBA Emu", GBA_VIDEO_WIDTH, GBA_VIDEO_HEIGHT)
+            .window(
+                "GBA Emu",
+                GBA_VIDEO_WIDTH * VIDEO_SCALE,
+                GBA_VIDEO_HEIGHT * VIDEO_SCALE,
+            )
             .position_centered()
             .build()
             .unwrap();
@@ -67,7 +73,9 @@ impl Video {
 
         for (color, point) in self.get_points() {
             canvas.set_draw_color(color);
-            canvas.draw_point(point).unwrap();
+            let point = point.scale(VIDEO_SCALE as i32);
+            let rect = Rect::new(point.x, point.y, VIDEO_SCALE, VIDEO_SCALE);
+            canvas.fill_rect(rect).unwrap();
         }
 
         canvas.set_draw_color(Color::RGB(0, 0, 0));
